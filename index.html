@@ -1,0 +1,2039 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profi Plánovač Nábytku</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;600&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .blueprint-bg {
+            background-color: #ffffff;
+            background-image:
+                linear-gradient(#e5e7eb 1px, transparent 1px),
+                linear-gradient(90deg, #e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        canvas {
+            border: 2px solid #000;
+            background: #fff;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            display: block;
+            /* Fixes alignment */
+        }
+
+        .module-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .module-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .module-list::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 text-gray-800 h-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- LEVÝ PANEL: Ovládání -->
+    <div class="w-full md:w-1/3 flex flex-col bg-white border-r border-gray-200 z-10 shadow-xl h-full">
+        <!-- HEADER & SETTINGS -->
+        <div class="p-4 border-b border-gray-200 overflow-y-auto max-h-[40vh]">
+            <h1 class="text-xl font-bold text-blue-900 mb-4 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                Truhlářský Editor
+            </h1>
+
+            <div class="space-y-4">
+                <!-- Project -->
+                <div class="grid grid-cols-2 gap-2">
+                    <input id="projName" type="text" placeholder="Název" class="text-xs border rounded px-2 py-1 w-full"
+                        value="Moje Kuchyně">
+                    <input id="projAuthor" type="text" placeholder="Autor"
+                        class="text-xs border rounded px-2 py-1 w-full" value="Jan Novák">
+                </div>
+
+                <!-- Decor -->
+                <div>
+                    <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1">Dekor</label>
+                    <select id="decorSelect" onchange="draw(); update3DMaterial();"
+                        class="w-full border rounded p-1 text-xs">
+                        <optgroup label="Základní Barvy">
+                            <option value="white_matte" selected>Bílá Matná</option>
+                            <option value="white_gloss">Bílá Vysoký Lesk</option>
+                            <option value="grey_matte">Světle Šedá</option>
+                            <option value="black_matte">Černá Hluboký Mat</option>
+                            <option value="cashmere">Kašmír (Béžová)</option>
+                            <option value="navy">Námořnická Modrá</option>
+                            <option value="forest">Lesní Zelená</option>
+                        </optgroup>
+                        <optgroup label="Dřevodekory">
+                            <option value="oak">Dub Přírodní</option>
+                            <option value="oak_dark">Dub Tmavý / Tabák</option>
+                            <option value="walnut">Ořech Americký</option>
+                            <option value="pine">Borovice Světlá</option>
+                        </optgroup>
+                        <optgroup label="Kámen">
+                            <option value="concrete">Beton Tmavý</option>
+                            <option value="concrete_light">Beton Světlý</option>
+                            <option value="marble">Mramor Carrara</option>
+                            <option value="stone_black">Břidlice Černá</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <!-- Handles -->
+                <div>
+                    <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1">Úchytky</label>
+                    <select id="handleSelect" onchange="update3DMaterial()" class="w-full border rounded p-1 text-xs">
+                        <option value="chrome">Chrom / Stříbrná</option>
+                        <option value="gold">Zlatá / Mosaz</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1">Orientace Úchytek</label>
+                    <select id="handleOrientationGlobal" onchange="draw(); if(currentView==='3d') draw3D();"
+                        class="w-full border rounded p-1 text-xs">
+                        <option value="vertical">Svisle</option>
+                        <option value="horizontal">Vodorovně</option>
+                    </select>
+                </div>
+
+                <!-- Materials & Room Dims -->
+                <div class="grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded border border-gray-100">
+                    <div>
+                        <label class="block text-[9px] uppercase text-gray-500 mb-1">P. Deska (mm)</label>
+                        <input id="wtThickness" type="number" value="38" class="w-full border rounded px-1 text-xs"
+                            oninput="draw()">
+                    </div>
+                    <div>
+                        <label class="block text-[9px] uppercase text-gray-500 mb-1">Korpus (mm)</label>
+                        <input id="matThickness" type="number" value="18" class="w-full border rounded px-1 text-xs"
+                            oninput="draw()">
+                    </div>
+                    <div class="col-span-2 mt-1">
+                        <label class="block text-[9px] uppercase text-gray-500 mb-1">Dekor Desky</label>
+                        <select id="wtDecorSelect" onchange="draw(); update3DMaterial()"
+                            class="w-full border rounded p-1 text-xs">
+                            <option value="wood_oak">Dub / Dřevo</option>
+                            <option value="wood_dark">Ořech / Tmavé Dřevo</option>
+                            <option value="concrete">Beton</option>
+                            <option value="stone_black">Černý Kámen</option>
+                            <option value="marble">Mramor</option>
+                            <option value="white_matte">Bílá</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="totalStats" class="text-xs font-mono text-center text-blue-600 font-bold pt-2 border-t"></div>
+
+                <!-- Back Wall Config -->
+                <div class="mt-2 pt-2 border-t border-gray-100 bg-blue-50 p-2 rounded">
+                    <label class="block text-[10px] uppercase text-blue-800 font-bold mb-1">Zadní Stěna (3D)</label>
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                            <label class="block text-[9px] text-gray-500">Šířka (mm)</label>
+                            <input id="wallW" type="number" value="5000" oninput="update3DWall()"
+                                class="w-full border rounded px-1 text-xs">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] text-gray-500">Výška (mm)</label>
+                            <input id="wallH" type="number" value="3000" oninput="update3DWall()"
+                                class="w-full border rounded px-1 text-xs">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[9px] text-gray-500">Barva Malby</label>
+                        <select id="wallColor" onchange="update3DWall()" class="w-full border rounded px-1 text-xs">
+                            <option value="#ffffff">Bílá</option>
+                            <option value="#f3f4f6" selected>Světle Šedá</option>
+                            <option value="#e5e7eb">Šedá</option>
+                            <option value="#fef3c7">Krémová</option>
+                            <option value="#bfdbfe">Modrá Pastelová</option>
+                            <option value="#bbf7d0">Zelená Pastelová</option>
+                            <option value="#fbcfe8">Růžová Pastelová</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MODULE LIST (Scrollable) -->
+        <div id="moduleList" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+            <div class="text-center text-gray-400 text-sm">Načítám...</div>
+        </div>
+
+        <!-- FOOTER ACTIONS -->
+        <div class="p-4 bg-white border-t border-gray-200 z-20 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
+            <div class="grid grid-cols-3 gap-2 mb-3">
+                <button onclick="addModule('base')"
+                    class="py-2 border border-gray-300 rounded hover:bg-blue-50 text-xs font-bold text-gray-700">SPODNÍ</button>
+                <button onclick="addModule('wall')"
+                    class="py-2 border border-gray-300 rounded hover:bg-blue-50 text-xs font-bold text-gray-700">HORNÍ</button>
+                <button onclick="addModule('tall')"
+                    class="py-2 border border-gray-300 rounded hover:bg-blue-50 text-xs font-bold text-gray-700">VYSOKÁ</button>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="clearAll()"
+                    class="px-3 py-2 text-xs font-bold text-red-600 border border-red-200 rounded hover:bg-red-50">Smazat</button>
+                <button onclick="downloadPDF()"
+                    class="flex-1 bg-red-600 text-white text-xs font-bold py-2 rounded hover:bg-red-700">PDF</button>
+                <button onclick="exportCSV()"
+                    class="flex-1 bg-green-600 text-white text-xs font-bold py-2 rounded hover:bg-green-700">CSV</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- PRAVÝ PANEL: Canvas -->
+    <!-- ZMĚNA: Odstraněno 'flex items-center justify-center', nahrazeno za bezpečnější scrollovaní -->
+    <div id="canvasContainer" class="w-full md:w-2/3 blueprint-bg relative flex-1 overflow-auto p-8">
+        <!-- Toolbar -->
+        <div class="sticky top-0 left-0 right-0 flex justify-between items-center pointer-events-none z-20 mb-4">
+            <div
+                class="bg-white/95 backdrop-blur px-1 py-1 rounded border border-gray-300 shadow-sm flex pointer-events-auto">
+                <button onclick="setView('front')" id="btn-front"
+                    class="px-3 py-1.5 text-xs font-bold rounded bg-blue-100 text-blue-800">Nárys</button>
+                <button onclick="setView('top')" id="btn-top"
+                    class="px-3 py-1.5 text-xs font-bold rounded hover:bg-gray-100 text-gray-600">Půdorys</button>
+                <button onclick="setView('side')" id="btn-side"
+                    class="px-3 py-1.5 text-xs font-bold rounded hover:bg-gray-100 text-gray-600">Bokorys</button>
+                <button onclick="setView('3d')" id="btn-3d"
+                    class="px-3 py-1.5 text-xs font-bold rounded hover:bg-gray-100 text-gray-600">3D Náhled</button>
+            </div>
+
+            <div
+                class="bg-white/95 backdrop-blur px-3 py-1 rounded border border-gray-300 shadow-sm text-xs font-mono pointer-events-auto ml-2">
+                <label><input type="checkbox" id="showDims" checked onchange="draw()"> Kóty</label>
+                <label class="ml-3"><input type="checkbox" id="showDoors" checked onchange="draw()"> Dvířka</label>
+                <label class="ml-3"><input type="checkbox" id="showWorktop" checked onchange="draw()"> Deska</label>
+            </div>
+        </div>
+
+        <!-- Canvas je nyní mx-auto, což ho centruje, ale při přetečení nechá levý okraj dostupný -->
+        <canvas id="canvas" class="mx-auto shadow-lg"></canvas>
+        <div id="canvas3d" class="hidden w-full h-[600px] bg-gray-200 shadow-inner"></div>
+    </div>
+
+    <script>
+        // --- CONFIG & STATE ---
+        let currentView = 'front'; // front, top, side
+
+        // Appliance Types Definitions
+        const APPLIANCE_TYPES = {
+            'oven': { label: 'Trouba', defaultH: 595, defaultPos: 0 },
+            'microwave': { label: 'Mikrovlnka', defaultH: 380, defaultPos: 1000 },
+            'fridge': { label: 'Lednice', defaultH: 1770, defaultPos: 0 },
+            'dishwasher': { label: 'Myčka', defaultH: 720, defaultPos: 0 },
+            'washing_machine': { label: 'Pračka', defaultH: 720, defaultPos: 0 },
+            'dryer': { label: 'Sušička', defaultH: 720, defaultPos: 0 },
+            'sink': { label: 'Dřez', defaultH: 200, defaultPos: 0, isSurface: true },
+            'hob': { label: 'Varná deska', defaultH: 50, defaultPos: 0, isSurface: true },
+            'hood': { label: 'Digestoř', defaultH: 400, defaultPos: 100 },
+            'drawer_unit': { label: 'Sada Zásuvek', defaultH: 720, defaultPos: 0 },
+            'socket': { label: 'El. Zásuvky', defaultH: 80, defaultPos: 1100 }
+        };
+
+        // State initialization
+        let modules = [
+            {
+                id: 1, type: 'tall', width: 600, height: 2150, elevation: 0, depth: 600, shelves: 2,
+                hinge: 'left', doorSplit: 720,
+                appliances: [
+                    { id: 'a1', type: 'oven', h: 595, pos: 720 }
+                ]
+            },
+            {
+                id: 2, type: 'base', width: 600, height: 720, elevation: 100, depth: 550, shelves: 0,
+                hinge: 'none', doorSplit: 0,
+                appliances: [
+                    { id: 'a3', type: 'drawer_unit', h: 720, pos: 0, count: 3 }
+                ]
+            },
+            {
+                id: 3, type: 'wall', width: 800, height: 720, elevation: 1450, depth: 320, shelves: 0,
+                hinge: 'left', doorSplit: 0,
+                appliances: [
+                    { id: 'a4', type: 'socket', h: 80, pos: 1100, count: 2, offX: 100 }
+                ]
+            }
+        ];
+
+        const CANVAS_PADDING = 120;
+
+        function getWorktopThickness() { return parseFloat(document.getElementById('wtThickness')?.value || 38); }
+        function getCorpusThickness() { return parseFloat(document.getElementById('matThickness')?.value || 18); }
+
+
+        function init() {
+            renderModuleList();
+            draw();
+        }
+
+        function setView(view) {
+            currentView = view;
+            // Update UI buttons
+            ['front', 'top', 'side', '3d'].forEach(v => {
+                const btn = document.getElementById('btn-' + v);
+                // Check if button exists to avoid errors (in case rendered before)
+                if (!btn) return;
+
+                if (v === view) {
+                    btn.classList.remove('bg-white', 'text-gray-600', 'hover:bg-gray-100');
+                    btn.classList.add('bg-blue-100', 'text-blue-800');
+                } else {
+                    btn.classList.add('bg-white', 'text-gray-600', 'hover:bg-gray-100');
+                    btn.classList.remove('bg-blue-100', 'text-blue-800');
+                }
+            });
+
+            const canvas = document.getElementById('canvas');
+            const canvas3d = document.getElementById('canvas3d');
+
+            if (view === '3d') {
+                canvas.classList.add('hidden');
+                canvas3d.classList.remove('hidden');
+                init3D();
+                setTimeout(draw3D, 100);
+            } else {
+                canvas.classList.remove('hidden');
+                canvas3d.classList.add('hidden');
+                draw();
+            }
+        }
+
+        // --- DATA MANIPULATION ---
+        const CORNER_SIZE = 900; // mm for standard corner
+
+        function addModule(type) {
+            const id = Date.now();
+            let newMod = {
+                id, type, width: 600, depth: 550, shelves: 1,
+                appliances: [],
+                hinge: 'left',
+                handleOrientation: 'vertical',
+                doorSplit: 0
+            };
+
+            if (type === 'base') {
+                newMod.height = 720; newMod.elevation = 100; newMod.depth = 550;
+            } else if (type === 'wall') {
+                newMod.height = 720; newMod.elevation = 1450; newMod.depth = 320;
+            } else if (type === 'tall') {
+                newMod.height = 2100; newMod.elevation = 0; newMod.depth = 600; newMod.shelves = 4; newMod.doorSplit = 720;
+            }
+            modules.push(newMod);
+            renderModuleList(); draw();
+        }
+
+        function removeModule(id) {
+            modules = modules.filter(m => m.id !== id);
+            renderModuleList(); draw();
+        }
+
+        function updateModule(id, key, value) {
+            const idx = modules.findIndex(m => m.id === id);
+            if (idx > -1) {
+                if (key === 'hinge') modules[idx][key] = value;
+                else modules[idx][key] = parseFloat(value);
+                if (currentView === '3d') draw3D(); // Redraw 3D if active
+                else draw();
+                updateTotalStats();
+            }
+        }
+
+        function addAppliance(moduleId) {
+            const modIdx = modules.findIndex(m => m.id === moduleId);
+            if (modIdx > -1) {
+                let defaultType = 'oven';
+                let defaultPos = 0;
+                if (modules[modIdx].type === 'base') defaultType = 'drawer_unit';
+                if (modules[modIdx].type === 'wall') { defaultType = 'socket'; defaultPos = 1100; }
+                const defs = APPLIANCE_TYPES[defaultType];
+                if (defaultType !== 'socket' || modules[modIdx].type !== 'wall') { defaultPos = defs.defaultPos; }
+                modules[modIdx].appliances.push({
+                    id: 'app_' + Date.now(), type: defaultType, h: defs.defaultH, pos: defaultPos, count: defaultType === 'drawer_unit' ? 3 : 1, offX: 100
+                });
+                renderModuleList();
+                if (currentView === '3d') draw3D(); else draw();
+            }
+        }
+
+        function removeAppliance(moduleId, appIndex) {
+            const modIdx = modules.findIndex(m => m.id === moduleId);
+            if (modIdx > -1) {
+                modules[modIdx].appliances.splice(appIndex, 1);
+                renderModuleList();
+                if (currentView === '3d') draw3D(); else draw();
+            }
+        }
+
+        function updateAppliance(moduleId, appIndex, key, value) {
+            const modIdx = modules.findIndex(m => m.id === moduleId);
+            if (modIdx > -1) {
+                const app = modules[modIdx].appliances[appIndex];
+                if (key === 'type') {
+                    app.type = value;
+                    const defs = APPLIANCE_TYPES[value];
+                    app.h = defs.defaultH;
+                    if (defs.defaultPos > 0) app.pos = defs.defaultPos;
+                    if (value === 'socket') { app.count = 2; app.offX = 100; if (modules[modIdx].type === 'wall') app.pos = 1100; }
+                    if (value === 'drawer_unit') { app.count = 3; }
+                    renderModuleList();
+                } else {
+                    app[key] = parseFloat(value);
+                }
+                draw();
+            }
+        }
+
+        function clearAll() {
+            if (confirm('Opravdu chcete smazat vše?')) {
+                modules = []; renderModuleList(); draw();
+            }
+        }
+
+        function downloadPDF() {
+            const canvas = document.getElementById('canvas');
+
+            // 1. Capture HIGH RES image
+            // Draw with 4x scale (approx 300 DPI equivalent compared to screen)
+            draw(4);
+            const imgData = canvas.toDataURL('image/png', 1.0);
+
+            // 2. Restore screen drawing
+            draw();
+
+            // Access jsPDF from the global window object (loaded via CDN)
+            const { jsPDF } = window.jspdf;
+
+            // Create PDF with dimensions based on the canvas Logical Size (mm)
+            // We use the canvas "style" width/height (logical size) for the PDF paper size
+            // So the PDF viewer sees it as the same physical size as on screen (e.g. 30cm wide)
+            const dpi = 96; // Standard screen DPI
+            const mmPerInch = 25.4;
+            const pxToMm = mmPerInch / dpi;
+
+            const logicalW = parseFloat(canvas.style.width);
+            const logicalH = parseFloat(canvas.style.height);
+
+            const pdfW = logicalW * pxToMm;
+            const pdfH = logicalH * pxToMm;
+
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: [pdfW, pdfH]
+            });
+
+            // Add the high-res image to fit the PDF page
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
+            pdf.save(`kuchyne_vykres_${Date.now()}.pdf`);
+        }
+
+        function exportCSV() {
+            const matThick = getCorpusThickness();
+            const backThick = 3; // HDF
+            let csv = "Pozice;Typ;Díl;Počet;Šířka (mm);Výška (mm);Tloušťka (mm);Materiál\n";
+
+            modules.forEach((m, idx) => {
+                const label = `${idx + 1}. ${m.type === 'base' ? 'Spodní' : (m.type === 'wall' ? 'Horní' : 'Vysoká')}`;
+                const w = m.width;
+                const h = m.height;
+                const d = m.depth;
+                const decor = document.getElementById('decorSelect').options[document.getElementById('decorSelect').selectedIndex].text;
+                // Match 3D "Full Color" logic: Carcass is same as Decor
+                const decorBody = decor;
+
+                // Corpus Sides
+                csv += `${label};${m.type};Bok Levý;1;${d};${h};${matThick};${decorBody}\n`;
+                csv += `${label};${m.type};Bok Pravý;1;${d};${h};${matThick};${decorBody}\n`;
+
+                // Top/Bottom
+                const innerW = w - 2 * matThick;
+                if (m.type === 'wall') {
+                    csv += `${label};${m.type};Dno;1;${d};${innerW};${matThick};${decorBody}\n`; // Grain usually along logic? width x depth
+                    csv += `${label};${m.type};Půda;1;${d};${innerW};${matThick};${decorBody}\n`;
+                } else {
+                    // Base/Tall usually have connection strips on top, but full bottom
+                    csv += `${label};${m.type};Dno;1;${d};${innerW};${matThick};${decorBody}\n`;
+                    if (m.type !== 'base') csv += `${label};${m.type};Půda;1;${d};${innerW};${matThick};${decorBody}\n`;
+                    else csv += `${label};${m.type};Svlak Přední;1;100;${innerW};${matThick};${decorBody}\n`; // Strip
+                }
+
+                // Back
+                const backH = h - 2; // Groove
+                const backW = w - 2;
+                csv += `${label};${m.type};Záda (HDF);1;${backW};${backH};${backThick};Bílá HDF\n`;
+
+                // Fronts (Simplified, ignoring gaps)
+                const doorH = (m.doorSplit > 0 && m.doorSplit < h) ? `${m.doorSplit} + ${h - m.doorSplit}` : h;
+                const doorCount = (m.doorSplit > 0 && m.doorSplit < h) ? 2 : 1;
+
+                if (m.doorSplit > 0 && m.doorSplit < h) {
+                    csv += `${label};${m.type};Dvířko Dolní;1;${w - 4};${m.doorSplit - 4};18;${decor}\n`;
+                    csv += `${label};${m.type};Dvířko Horní;1;${w - 4};${h - m.doorSplit - 4};18;${decor}\n`;
+                } else {
+                    csv += `${label};${m.type};Dvířko;1;${w - 4};${h - 4};18;${decor}\n`;
+                }
+            });
+
+            // Worktop
+            const wtThick = getWorktopThickness();
+            const wtDecor = document.getElementById('wtDecorSelect').options[document.getElementById('wtDecorSelect').selectedIndex].text;
+            // Simple total length
+            const totalLen = modules.reduce((a, b) => b.type === 'base' ? a + b.width : a, 0); // Only base modules
+            if (totalLen > 0) {
+                csv += `Worktop;Deska;Pracovní deska;1;${totalLen};600;${wtThick};${wtDecor}\n`;
+            }
+
+            // BOM
+            const bom = "\ufeff" + csv; // UTF-8 BOM
+            const blob = new Blob([bom], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `narezovy_plan_${Date.now()}.csv`;
+            link.click();
+        }
+
+        // --- UI RENDERING ---
+        function renderModuleList() {
+            const container = document.getElementById('moduleList');
+            container.innerHTML = '';
+
+            if (modules.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8">Žádné moduly.</div>';
+                updateTotalStats(); return;
+            }
+
+            modules.forEach((m, index) => {
+                const el = document.createElement('div');
+                el.className = "bg-white p-3 rounded shadow-sm border border-gray-200 relative group cursor-move";
+                el.draggable = true;
+                el.ondragstart = (e) => { e.dataTransfer.setData('text/plain', index); e.dataTransfer.effectAllowed = 'move'; };
+                el.ondragover = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
+                el.ondrop = (e) => {
+                    e.preventDefault();
+                    const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                    if (fromIdx !== index) {
+                        const movedItem = modules[fromIdx];
+                        modules.splice(fromIdx, 1);
+                        modules.splice(index, 0, movedItem);
+                        renderModuleList(); draw();
+                        if (currentView === '3d') draw3D();
+                    }
+                };
+
+                // Remove Button moved to end to prevent innerHTML overwrite
+
+                // Header
+                let label = m.type === 'base' ? 'SPODNÍ' : (m.type === 'wall' ? 'HORNÍ' : 'VYSOKÁ');
+                el.innerHTML += `
+                    <div class="flex items-center gap-2 mb-2">
+                            <span class="text-[10px] w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded-full font-bold">${index + 1}</span>
+                            <span class="text-xs font-bold text-gray-700">${label}</span>
+                    </div>
+                `;
+
+                // Dimensions
+                // Door / Hinge / Handle Settings
+                let doorSettings = `<div class="col-span-2 mt-2 pt-2 border-t border-gray-100 grid grid-cols-2 gap-2">`;
+                // Hinges
+                doorSettings += `<div><label class="block text-gray-500 text-[10px] uppercase">Otevírání</label><select onchange="updateModule(${m.id}, 'hinge', this.value)" class="w-full border border-gray-300 rounded px-1 py-1 text-xs"><option value="left" ${m.hinge === 'left' ? 'selected' : ''}>Levé (Panty L)</option><option value="right" ${m.hinge === 'right' ? 'selected' : ''}>Pravé (Panty P)</option><option value="none" ${m.hinge === 'none' ? 'selected' : ''}>Žádné (Otevřené)</option></select></div>`;
+
+                // Handle Orientation (REMOVED - now Global)
+
+                // Split (Always show if hinge is not none)
+                if (m.hinge !== 'none') {
+                    doorSettings += `<div><label class="block text-gray-500 text-[10px] uppercase">Dělení dvířek (mm)</label><input type="number" value="${m.doorSplit || 0}" oninput="updateModule(${m.id}, 'doorSplit', this.value)" class="w-full border border-gray-300 rounded px-1 py-1 text-xs"></div>`;
+                }
+
+                doorSettings += `</div>`;
+
+                const content = document.createElement('div');
+                content.innerHTML = `
+                    <div class="grid grid-cols-2 gap-2 text-xs mb-1">
+                        <div><label class="block text-gray-500 text-[10px] uppercase">Šířka (mm)</label><input type="number" value="${m.width}" oninput="updateModule(${m.id}, 'width', this.value)" class="w-full border border-gray-300 rounded px-1 py-1 font-bold"></div>
+                        <div><label class="block text-gray-500 text-[10px] uppercase">Výška skříně</label><input type="number" value="${m.height}" oninput="updateModule(${m.id}, 'height', this.value)" class="w-full border border-gray-300 rounded px-1 py-1"></div>
+                        <div><label class="block text-gray-500 text-[10px] uppercase">Hloubka</label><input type="number" value="${m.depth}" oninput="updateModule(${m.id}, 'depth', this.value)" class="w-full border border-gray-300 rounded px-1 py-1"></div>
+                        <div><label class="block text-blue-600 text-[10px] uppercase font-bold">Od země (mm)</label><input type="number" value="${m.elevation}" oninput="updateModule(${m.id}, 'elevation', this.value)" class="w-full border border-blue-200 bg-blue-50 rounded px-1 py-1 font-bold text-blue-900"></div>
+                    </div>
+                    ${doorSettings}
+                `;
+                el.appendChild(content);
+
+                // Appliances
+                const appContainer = document.createElement('div');
+                appContainer.className = "border-t border-gray-100 pt-2 mt-2";
+
+                let appliancesHtml = '';
+                if (m.appliances.length > 0) {
+                    appliancesHtml += '<div class="mt-2 space-y-2">';
+                    m.appliances.forEach((app, appIdx) => {
+                        const isSurface = APPLIANCE_TYPES[app.type].isSurface;
+                        const isSocket = app.type === 'socket';
+                        const isDrawerUnit = app.type === 'drawer_unit';
+                        let options = '';
+                        for (const [key, val] of Object.entries(APPLIANCE_TYPES)) { options += `<option value="${key}" ${app.type === key ? 'selected' : ''}>${val.label}</option>`; }
+                        let extraInputs = '';
+                        if (isSocket || isDrawerUnit) {
+                            let labelCount = isSocket ? 'Počet ks' : 'Počet zásuvek';
+                            let posInput = isSocket ? `<div><label class="text-[9px] uppercase text-blue-700 font-bold block">Zleva (mm)</label><input type="number" value="${app.offX || 0}" oninput="updateAppliance(${m.id}, ${appIdx}, 'offX', this.value)" class="w-full border border-blue-300 rounded px-1 text-center"></div>` : '';
+                            extraInputs = `<div class="col-span-2 grid grid-cols-2 gap-2 mt-1 pt-1 border-t border-blue-200"><div><label class="text-[9px] uppercase text-blue-700 font-bold block">${labelCount}</label><input type="number" value="${app.count || 1}" oninput="updateAppliance(${m.id}, ${appIdx}, 'count', this.value)" class="w-full border border-blue-300 rounded px-1 text-center font-bold"></div>${posInput}</div>`;
+                        }
+                        appliancesHtml += `<div class="p-2 bg-blue-50 border border-blue-200 rounded text-xs"><div class="flex justify-between items-center mb-1"><select onchange="updateAppliance(${m.id}, ${appIdx}, 'type', this.value)" class="bg-white border border-blue-300 rounded px-1 py-0.5 font-bold text-blue-900 w-32">${options}</select><button onclick="removeAppliance(${m.id}, ${appIdx})" class="text-red-400 hover:text-red-600 font-bold px-1">×</button></div><div class="grid grid-cols-2 gap-2"><div class="${isSocket ? 'hidden' : ''}"><label class="text-[9px] uppercase text-gray-500 block">${isDrawerUnit ? 'Celková výška' : 'Výška spotř.'}</label><input type="number" value="${app.h}" oninput="updateAppliance(${m.id}, ${appIdx}, 'h', this.value)" class="w-full border rounded px-1"></div><div class="${isSurface ? 'opacity-50 pointer-events-none' : ''}"><label class="text-[9px] uppercase text-gray-500 block">${isSurface ? 'Na desce' : 'Od dna (mm)'}</label><input type="number" value="${app.pos}" oninput="updateAppliance(${m.id}, ${appIdx}, 'pos', this.value)" class="w-full border rounded px-1"></div></div>${extraInputs}</div>`;
+                    });
+                    appliancesHtml += '</div>';
+                }
+
+                appContainer.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                            <span class="text-[10px] font-bold text-gray-500 uppercase">Vybavení / Zásuvky</span>
+                            <button onclick="addAppliance(${m.id})" class="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 hover:bg-green-100">+ Přidat</button>
+                    </div>
+                    ${appliancesHtml}
+                `;
+                // Remove Button (Absolute top-right) - Re-added here to preserve event listeners
+                const delBtn = document.createElement('button');
+                delBtn.className = "absolute top-2 right-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded p-1 transition z-10 cursor-pointer";
+                delBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>';
+                delBtn.onmousedown = (e) => e.stopPropagation();
+                delBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); if (confirm('Opravdu smazat?')) removeModule(m.id); };
+                el.appendChild(delBtn);
+
+                el.appendChild(appContainer);
+                container.appendChild(el);
+            });
+            updateTotalStats();
+        }
+
+        function updateTotalStats() {
+            const totalW = modules.reduce((acc, m) => acc + m.width, 0);
+            document.getElementById('totalStats').innerText = `Celková délka: ${(totalW / 1000).toFixed(2)} m`;
+        }
+
+        // --- PREPARATION LOGIC ---
+        function getPreparedModules() {
+            // Linear layout with smart stacking
+            let xFloor = 0;
+            let xWall = 0;
+
+            return modules.map(m => {
+                let newItem = { ...m };
+                const w = parseFloat(m.width);
+                newItem.width = w;
+                newItem.depth = parseFloat(m.depth);
+                newItem.height = parseFloat(m.height);
+                newItem.elevation = parseFloat(m.elevation);
+
+                // Stacking logic
+                if (m.type === 'wall') {
+                    // Upper cabinet track
+                    newItem.x = xWall;
+                    xWall += w;
+                } else {
+                    // Floor cabinet (base/tall)
+                    if (m.type === 'tall') {
+                        // Tall cabinets must respect BOTH wall and floor cursors
+                        let startX = Math.max(xFloor, xWall);
+                        newItem.x = startX;
+                        xFloor = startX + w;
+                        xWall = startX + w;
+                    } else {
+                        // Base cabinet
+                        newItem.x = xFloor;
+                        xFloor += w;
+                    }
+                }
+                return newItem;
+            });
+        }
+
+        function getDecorFill() {
+            const decor = document.getElementById('decorSelect').value;
+            // 2D colors (simplified)
+            if (decor.includes('white')) return '#f9fafb';
+            if (decor.includes('oak') || decor === 'pine') return '#d4a373';
+            if (decor === 'walnut') return '#5d4037';
+            if (decor.includes('black') || decor === 'stone_black') return '#1f2937';
+            if (decor === 'navy') return '#1e3a8a';
+            if (decor === 'forest') return '#064e3b';
+            if (decor.includes('concrete')) return '#9ca3af';
+            if (decor === 'cashmere') return '#e5e5e5';
+            if (decor === 'marble') return '#f3f4f6';
+            return '#e5e7eb';
+        }
+
+        // --- TEXTURE GENERATOR ---
+        const textureCache = {};
+
+        function getTexture(type) {
+            if (textureCache[type]) return textureCache[type];
+
+            const canvas = document.createElement('canvas');
+            const cw = 512; const ch = 512;
+            canvas.width = cw; canvas.height = ch;
+            const ctx = canvas.getContext('2d');
+
+            if (type === 'wood_oak') {
+                ctx.fillStyle = '#b08d70'; ctx.fillRect(0, 0, cw, ch); // Warmer/Darker base
+                // Grain
+                for (let i = 0; i < 150; i++) {
+                    ctx.fillStyle = `rgba(100, 70, 40, ${Math.random() * 0.15})`; // Darker grain
+                    const x = Math.random() * cw;
+                    const w = Math.random() * 20 + 2;
+                    ctx.fillRect(x, 0, w, ch);
+                    // Knots
+                    if (Math.random() < 0.05) {
+                        ctx.beginPath();
+                        ctx.fillStyle = 'rgba(80, 50, 30, 0.15)'; // Dark knot
+                        ctx.ellipse(x, Math.random() * ch, 10, 30, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            } else if (type === 'wood_pine') {
+                ctx.fillStyle = '#e6d5ac'; ctx.fillRect(0, 0, cw, ch); // Stronger tan/cream
+                for (let i = 0; i < 100; i++) {
+                    ctx.fillStyle = `rgba(180, 140, 100, ${Math.random() * 0.2})`; // Darker grain
+                    const x = Math.random() * cw;
+                    const w = Math.random() * 15 + 2;
+                    ctx.fillRect(x, 0, w, ch);
+                }
+            } else if (type === 'wood_dark') {
+                ctx.fillStyle = '#4a3227'; ctx.fillRect(0, 0, cw, ch);
+                for (let i = 0; i < 100; i++) {
+                    ctx.fillStyle = `rgba(10, 5, 0, ${Math.random() * 0.3})`;
+                    ctx.fillRect(Math.random() * cw, 0, Math.random() * 30, ch);
+                }
+            } else if (type === 'concrete') {
+                ctx.fillStyle = '#9ca3af'; ctx.fillRect(0, 0, cw, ch); // Darker base
+                for (let i = 0; i < 5000; i++) {
+                    ctx.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
+                    ctx.fillRect(Math.random() * cw, Math.random() * ch, 2, 2);
+                }
+            } else if (type === 'stone_black') {
+                ctx.fillStyle = '#1c1917'; ctx.fillRect(0, 0, cw, ch);
+                for (let i = 0; i < 3000; i++) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.08)'; // Reduced white pops
+                    ctx.fillRect(Math.random() * cw, Math.random() * ch, 1, 1);
+                }
+            } else if (type === 'marble') {
+                ctx.fillStyle = '#f3f4f6'; ctx.fillRect(0, 0, cw, ch); // Less bright white
+                ctx.strokeStyle = '#9ca3af'; ctx.lineWidth = 2; // Darker veins
+                for (let i = 0; i < 8; i++) {
+                    ctx.beginPath();
+                    ctx.moveTo(Math.random() * cw, Math.random() * ch);
+                    ctx.bezierCurveTo(Math.random() * cw, Math.random() * ch, Math.random() * cw, Math.random() * ch, Math.random() * cw, Math.random() * ch);
+                    ctx.stroke();
+                }
+            } else if (type === 'floor_wood') {
+                // Realistic Wood Floor Planks
+                ctx.fillStyle = '#C4A484'; ctx.fillRect(0, 0, cw, ch); // Light Brown Base
+                const rowH = 128; // Plank height (in texture space)
+                const plankW = 64; // Plank width
+
+                for (let y = 0; y < ch; y += rowH) {
+                    // Stagger rows
+                    let startX = (y / rowH) % 2 === 0 ? 0 : -32;
+                    for (let x = startX; x < cw; x += plankW) {
+                        // Variation
+                        const tint = (Math.random() - 0.5) * 30;
+                        const r = Math.max(0, Math.min(255, 196 + tint));
+                        const g = Math.max(0, Math.min(255, 164 + tint));
+                        const b = Math.max(0, Math.min(255, 132 + tint));
+                        ctx.fillStyle = `rgb(${Math.floor(r)},${Math.floor(g)},${Math.floor(b)})`;
+                        ctx.fillRect(x, y, plankW, rowH);
+
+                        // Grain lines
+                        ctx.fillStyle = "rgba(0,0,0,0.05)";
+                        for (let k = 0; k < 5; k++) {
+                            ctx.fillRect(x + Math.random() * plankW, y, Math.random() * 2, rowH);
+                        }
+
+                        // Separator joints
+                        ctx.strokeStyle = "rgba(0,0,0,0.15)";
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(x, y, plankW, rowH);
+                    }
+                }
+
+                for (let x = 0; x < cw; x += plankW) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ch); ctx.stroke();
+                    // Wood grain light
+                    for (let k = 0; k < 20; k++) {
+                        ctx.fillStyle = 'rgba(0,0,0,0.02)';
+                        ctx.fillRect(x + Math.random() * plankW, 0, 2, ch);
+                    }
+                }
+            }
+
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.wrapS = THREE.RepeatWrapping;
+            tex.wrapT = THREE.RepeatWrapping;
+            textureCache[type] = tex;
+            return tex;
+        }
+
+        // Helper for Worktop Style
+        function getWorktopStyle(decorKey) {
+            let p = { color: 0xffffff, roughness: 0.6, map: null };
+            if (decorKey === 'wood_oak') { p.map = getTexture('wood_oak'); p.roughness = 0.5; }
+            else if (decorKey === 'wood_dark') { p.color = 0xffffff; p.map = getTexture('wood_dark'); p.roughness = 0.4; }
+            else if (decorKey === 'concrete') { p.map = getTexture('concrete'); p.roughness = 0.9; }
+            else if (decorKey === 'stone_black') { p.color = 0xffffff; p.map = getTexture('stone_black'); p.roughness = 0.8; }
+            else if (decorKey === 'marble') { p.map = getTexture('marble'); p.roughness = 0.1; }
+            else if (decorKey === 'white_matte') { p.color = 0xffffff; p.roughness = 0.6; }
+            return p;
+        }
+
+        function get3DMaterialProps() {
+            const decor = document.getElementById('decorSelect').value;
+            // Defaults
+            let p = { color: 0xe5e7eb, roughness: 0.5, metalness: 0, map: null };
+
+            if (decor === 'white_matte') { p.color = 0xffffff; p.roughness = 0.6; }
+            else if (decor === 'white_gloss') { p.color = 0xffffff; p.roughness = 0.05; p.metalness = 0.1; }
+            else if (decor === 'grey_matte') { p.color = 0xcbd5e1; p.roughness = 0.8; }
+            else if (decor === 'black_matte') { p.color = 0x111111; p.roughness = 0.9; }
+            else if (decor === 'cashmere') { p.color = 0xe5e5e5; p.roughness = 0.5; }
+            else if (decor === 'navy') { p.color = 0x1e3a8a; p.roughness = 0.4; p.metalness = 0.1; }
+            else if (decor === 'forest') { p.color = 0x064e3b; p.roughness = 0.4; p.metalness = 0.1; }
+
+            // Textures
+            // Textures - Set base color to white 0xffffff or light distinct color to see texture
+            else if (decor === 'oak') { p.color = 0xffffff; p.roughness = 0.5; p.map = getTexture('wood_oak'); }
+            else if (decor === 'oak_dark') { p.color = 0xffffff; p.roughness = 0.5; p.map = getTexture('wood_oak'); } // Untinted
+            else if (decor === 'walnut') { p.color = 0xffffff; p.roughness = 0.4; p.map = getTexture('wood_dark'); }
+            else if (decor === 'pine') { p.color = 0xffffff; p.roughness = 0.6; p.map = getTexture('wood_pine'); }
+
+            else if (decor === 'concrete') { p.color = 0xffffff; p.roughness = 0.9; p.map = getTexture('concrete'); } // White base for concrete map
+            else if (decor === 'concrete_light') { p.color = 0xffffff; p.roughness = 0.9; p.map = getTexture('concrete'); }
+            else if (decor === 'marble') { p.color = 0xffffff; p.roughness = 0.1; p.map = getTexture('marble'); }
+            else if (decor === 'stone_black') { p.color = 0xffffff; p.roughness = 0.9; p.map = getTexture('stone_black'); }
+
+            return p;
+        }
+
+        // --- DRAWING DISPATCHER ---
+        function draw(scaleOverride = null) {
+            const canvas = document.getElementById('canvas');
+            const container = document.getElementById('canvasContainer');
+            const ctx = canvas.getContext('2d');
+            const items = getPreparedModules();
+
+            // Calculate total bounds to scale (Depends on View)
+            let maxX = 0, maxY = 0;
+
+            if (currentView === 'front') {
+                maxX = Math.max(...items.map(i => i.x + i.width), 1000) + 100;
+                maxY = 3000; // Increased to 3000 to "zoom out" and create more vertical space
+            } else if (currentView === 'top') {
+                maxX = Math.max(...items.map(i => i.x + i.width), 1000) + 100;
+                maxY = Math.max(...items.map(i => i.depth), 600) + 200;
+            } else if (currentView === 'side') {
+                maxX = Math.max(...items.map(i => i.depth), 600) + 200;
+                maxY = 2600;
+            }
+
+            // ... (rest of resizing logic same)
+
+            // AUTO-RESIZE LOGIC
+            const dpr = scaleOverride || window.devicePixelRatio || 1;
+            const containerW = container.clientWidth - 60; // Padding
+            const containerH = 800; // Fixed view height
+
+            let scaleX = (containerW - (CANVAS_PADDING * 2)) / maxX;
+            let scaleY = (containerH - (CANVAS_PADDING * 2)) / maxY;
+            let scale = Math.min(scaleX, scaleY);
+
+            // Set logical size (CSS pixels)
+            const logicalW = Math.max(containerW, (maxX * scale < containerW) ? containerW : maxX * scale + CANVAS_PADDING * 2);
+            const logicalH = Math.max(containerH, maxY * scale + CANVAS_PADDING * 2);
+
+            // Set actual size (Physical pixels)
+            canvas.width = logicalW * dpr;
+            canvas.height = logicalH * dpr;
+
+            // Set CSS size
+            canvas.style.width = logicalW + 'px';
+            canvas.style.height = logicalH + 'px';
+
+            // Normalize coordinate system
+            ctx.scale(dpr, dpr);
+
+            // Helpers
+            const toPx = (val) => val * scale;
+
+            // Center if smaller than canvas, otherwise left align (startX = padding)
+            let startX = CANVAS_PADDING;
+            // Disable centering to keep consistent position
+            /* if (maxX * scale < logicalW) {
+                startX = (logicalW - maxX * scale) / 2;
+            } */
+
+            const drawCtx = { ctx, scale, startX, toPx, items, canvas: { width: logicalW, height: logicalH } }; // Fake canvas size for draw funcs
+
+            // Clear
+            ctx.clearRect(0, 0, logicalW, logicalH);
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, logicalW, logicalH);
+
+            // Dispatch
+            if (currentView === 'front') {
+                drawFront({ ctx, scale, startX: CANVAS_PADDING, toPx, items, canvas });
+            } else if (currentView === 'top') {
+                drawTop({ ctx, scale, startX: CANVAS_PADDING, toPx, items, canvas });
+            } else if (currentView === 'side') {
+                drawSide({ ctx, scale, startX: CANVAS_PADDING, toPx, items, canvas });
+            }
+        }
+
+        // --- VIEW: FRONT (NÁRYS) ---
+        function drawFront({ ctx, scale, startX, toPx, items, canvas }) {
+            // Fix: Use a dedicated bottom margin for the floor to push drawing lower
+            // Scale is calculated with big padding (120), so content fits easily.
+            // By setting floor near bottom (50px from bottom), we maximize top headroom.
+            const floorY = canvas.height - 60;  // Standardized floorY
+            const toY = (hFromFloor) => floorY - toPx(hFromFloor);
+            const toX = (val) => startX + toPx(val);
+            const cabinetFill = getDecorFill();
+            const showWorktop = document.getElementById('showWorktop').checked;
+            const showDoors = document.getElementById('showDoors').checked;
+            const showDims = document.getElementById('showDims').checked;
+
+            // Draw Wall Title
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear
+            ctx.fillStyle = "#000"; ctx.font = "bold 20px 'Roboto Mono'"; ctx.textAlign = "left";
+            ctx.fillText("NÁRYS", 20, 40);
+
+            ctx.beginPath(); ctx.moveTo(0, floorY); ctx.lineTo(canvas.width, floorY); ctx.strokeStyle = "#888"; ctx.lineWidth = 1; ctx.stroke();
+
+            items.forEach(item => {
+                const x = toX(item.x);
+                const w = toPx(item.width);
+                const h = toPx(item.height);
+                const startY = toY(item.elevation + item.height); // Top Y
+
+                ctx.fillStyle = cabinetFill;
+                ctx.fillRect(x, startY, w, h);
+                ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+                ctx.strokeRect(x, startY, w, h);
+
+                // ... rest of logic
+                let occupiedRegions = [];
+                item.appliances.forEach(app => {
+                    const isSurface = APPLIANCE_TYPES[app.type].isSurface;
+                    const isSocket = app.type === 'socket';
+                    const isDrawerUnit = app.type === 'drawer_unit';
+                    const wtY = toY(item.elevation + item.height + getWorktopThickness());
+                    const wtH = toPx(getWorktopThickness());
+                    let ay, ah, ax, aw;
+                    const padding = 3; aw = w - (2 * padding); ax = x + padding; ah = toPx(app.h);
+
+                    if (isSurface) {
+                        if (app.type === 'sink') {
+                            ctx.fillStyle = "#94a3b8"; ctx.fillRect(x + w * 0.1, wtY, w * 0.8, wtH);
+                            ctx.strokeStyle = "#334155"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x + w / 2, wtY); ctx.lineTo(x + w / 2, wtY - 40); ctx.lineTo(x + w / 2 + 20, wtY - 50); ctx.stroke();
+                        } else if (app.type === 'hob') {
+                            ctx.fillStyle = "#1e293b"; ctx.fillRect(x + w * 0.1, wtY - 4, w * 0.8, 4);
+                        }
+                    } else if (isSocket) {
+                        const count = app.count || 1; const socketSize = 80; const socketPx = toPx(socketSize);
+                        const appY_fromFloor = item.elevation + app.pos; ay = toY(appY_fromFloor + socketSize);
+                        let startSockX = (app.offX !== undefined) ? x + toPx(app.offX) : x + (w - toPx(count * socketSize)) / 2;
+
+                        // DRAW SOCKET BOXES
+                        for (let i = 0; i < count; i++) {
+                            const sx = startSockX + toPx(i * 80);
+                            ctx.fillStyle = "#fff"; ctx.fillRect(sx, ay, socketPx, socketPx);
+                            ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.strokeRect(sx, ay, socketPx, socketPx);
+                            // Pins
+                            ctx.fillStyle = "#000"; const r = socketPx * 0.1;
+                            ctx.beginPath(); ctx.arc(sx + socketPx * 0.3, ay + socketPx * 0.5, r, 0, 2 * Math.PI); ctx.fill();
+                            ctx.beginPath(); ctx.arc(sx + socketPx * 0.7, ay + socketPx * 0.5, r, 0, 2 * Math.PI); ctx.fill();
+                        }
+                    } else if (isDrawerUnit) {
+                        const appY_fromFloor = item.elevation + app.pos; ay = toY(appY_fromFloor + app.h);
+                        occupiedRegions.push({ min: app.pos, max: app.pos + app.h });
+                        ctx.fillStyle = cabinetFill; ctx.fillRect(ax, ay, aw, ah);
+                        const count = app.count || 3; const singleDrawerPx = ah / count;
+                        ctx.strokeStyle = "#bbb"; ctx.lineWidth = 2; // Lighter color for visibility on dark
+                        for (let i = 0; i < count; i++) {
+                            let dy = ay + (i * singleDrawerPx);
+                            ctx.strokeRect(ax, dy, aw, singleDrawerPx);
+                            let handleY = dy + (singleDrawerPx * 0.2); // Handle near top of drawer
+                            // Handle visual - horizontal line
+                            ctx.beginPath();
+                            ctx.moveTo(ax + aw * 0.3, handleY);
+                            ctx.lineTo(ax + aw * 0.7, handleY);
+                            ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; // White bold handle
+                            ctx.stroke();
+                            ctx.strokeStyle = "#bbb"; ctx.lineWidth = 2; // Reset
+                        }
+                    } else {
+                        const appY_fromFloor = item.elevation + app.pos; ay = toY(appY_fromFloor + app.h);
+                        if (['oven', 'microwave'].includes(app.type)) occupiedRegions.push({ min: app.pos, max: app.pos + app.h });
+                        if (app.type === 'fridge') ctx.fillStyle = "#e0f2fe"; else if (app.type === 'dishwasher' || app.type === 'washing_machine' || app.type === 'dryer') ctx.fillStyle = "#f1f5f9"; else ctx.fillStyle = "#fff";
+                        ctx.fillRect(ax, ay, aw, ah); ctx.strokeStyle = "#444"; ctx.lineWidth = 1.5; ctx.strokeRect(ax, ay, aw, ah);
+                        ctx.fillStyle = "#000"; ctx.font = "9px sans-serif"; ctx.textAlign = "center"; ctx.fillText(APPLIANCE_TYPES[app.type].label, ax + aw / 2, ay + ah / 2);
+                        if (app.type === 'washing_machine' || app.type === 'dryer') { ctx.beginPath(); ctx.arc(ax + aw / 2, ay + ah / 2, Math.min(aw, ah) * 0.3, 0, 2 * Math.PI); ctx.stroke(); }
+                    }
+                });
+
+                if (item.type !== 'wall' && item.elevation > 0) {
+                    const plinthH = toPx(item.elevation); const plinthY = toY(item.elevation);
+                    ctx.fillStyle = '#fff'; ctx.fillRect(x + 5, plinthY, w - 10, plinthH); ctx.strokeRect(x + 5, plinthY, w - 10, plinthH);
+                    ctx.beginPath(); ctx.strokeStyle = "#ddd"; ctx.lineWidth = 1; for (let i = 0; i < w; i += 10) { ctx.moveTo(x + 5 + i, plinthY); ctx.lineTo(x + 5 + i, plinthY + plinthH); } ctx.stroke();
+                }
+
+                if (showWorktop && item.type === 'base') {
+                    const wtH = toPx(getWorktopThickness()); const wtY = toY(item.elevation + item.height + getWorktopThickness());
+                    ctx.fillStyle = '#d1d5db'; ctx.fillRect(x, wtY, w, wtH); ctx.strokeRect(x, wtY, w, wtH);
+                }
+
+                if (showDoors) {
+                    let segments = [];
+                    // Universal Split Logic (Height > 0)
+                    if (item.doorSplit > 0 && item.doorSplit < item.height) {
+                        segments.push({ min: 0, max: item.doorSplit }); segments.push({ min: item.doorSplit, max: item.height });
+                    } else { segments.push({ min: 0, max: item.height }); }
+                    segments.forEach(seg => {
+                        const segMid = (seg.min + seg.max) / 2;
+                        const isBlocked = occupiedRegions.some(reg => segMid > reg.min && segMid < reg.max);
+                        if (!isBlocked) {
+                            if (item.hinge !== 'none') drawDoorSwing(ctx, x, toY(item.elevation + seg.max), w, toPx(seg.max - seg.min), item.hinge);
+                            if (seg.min > 0) { ctx.beginPath(); ctx.moveTo(x, toY(item.elevation + seg.min)); ctx.lineTo(x + w, toY(item.elevation + seg.min)); ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.stroke(); }
+                        }
+                    });
+                }
+
+            });
+
+            // Pass 2: Dimensions (on top)
+            if (showDims) {
+                const floorY = canvas.height - 60; // Standardized
+                items.forEach(item => {
+                    const x = toX(item.x);
+                    const w = toPx(item.width);
+
+                    // Cabinet dims
+                    const isUpper = item.elevation > 1200;
+                    if (!isUpper) drawDim(ctx, x, floorY + 20, x + w, floorY + 20, item.width);
+                    else drawDim(ctx, x, toY(item.elevation + item.height) - 20, x + w, toY(item.elevation + item.height) - 20, item.width, false, true);
+
+                    const topY = toY(item.elevation + item.height);
+                    const bottomY = toY(item.elevation);
+                    drawDim(ctx, x - 10, topY, x - 10, bottomY, item.height, true);
+                    if (item.elevation > 0 && !isUpper) {
+                        drawDim(ctx, x - 10, bottomY, x - 10, floorY, item.elevation, true, true);
+                    }
+
+                    // Appliance dims
+                    item.appliances.forEach((app, appIdx) => {
+                        if (app.type === 'socket') {
+                            const socketSize = 80; const count = app.count || 1;
+                            const startSockX = (app.offX !== undefined) ? x + toPx(app.offX) : x + (w - toPx(count * socketSize)) / 2;
+                            const ay = toY(item.elevation + app.pos + socketSize);
+
+                            // Draw Horiz Dim for socket X (only once per group, to first socket)
+                            const distMm = (app.offX !== undefined) ? app.offX : (item.width - (count * 80)) / 2;
+                            const dimY = ay - 25; // slightly above
+                            // Arrow style dim from Left Edge of Module to Left Edge of Socket Group
+                            drawDim(ctx, x, dimY, startSockX, dimY, distMm, false, true);
+
+                            // Vertical Dim for socket Y (from floor or bottom?)
+                            if (app.pos > 0) drawDim(ctx, startSockX + toPx(socketSize) * 0.5, toY(item.elevation), startSockX + toPx(socketSize) * 0.5, toY(item.elevation + app.pos), app.pos, true, true);
+                        }
+                    });
+                });
+            }
+
+        }
+
+        // --- VIEW: TOP (PŮDORYS) ---
+        function drawTop({ ctx, scale, startX, toPx, items, canvas }) {
+            const wallY = 100; // Increased to avoid title overlap
+            const toX = (val) => startX + toPx(val);
+            const cabinetFill = getDecorFill();
+            const showDims = document.getElementById('showDims').checked;
+
+            // Draw Wall (šířka plátna)
+            ctx.beginPath(); ctx.moveTo(0, wallY); ctx.lineTo(canvas.width, wallY); ctx.strokeStyle = "#000"; ctx.lineWidth = 3; ctx.stroke();
+            ctx.fillStyle = "#eee"; ctx.fillRect(0, 0, canvas.width, wallY);
+
+            // Sort items by elevation for Top View (so wall cabinets draw ON TOP of base cabinets)
+            const sortedItems = [...items].sort((a, b) => a.elevation - b.elevation);
+
+            sortedItems.forEach(item => {
+                const x = toX(item.x);
+                const w = toPx(item.width);
+                const d = toPx(item.depth);
+
+                ctx.fillStyle = cabinetFill; ctx.fillRect(x, wallY, w, d);
+                ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.strokeRect(x, wallY, w, d);
+
+                // Worktop line
+                if (item.type !== 'wall') {
+                    ctx.beginPath(); ctx.moveTo(x, wallY + d); ctx.lineTo(x + w, wallY + d); ctx.strokeStyle = "#666"; ctx.lineWidth = 1; ctx.stroke();
+                }
+
+                // Dims removed from this loop to avoid overlap
+            });
+
+            // Pass 2: Dims for Top View
+            if (showDims) {
+                sortedItems.forEach(item => {
+                    const x = toX(item.x);
+                    const w = toPx(item.width);
+                    const d = toPx(item.depth);
+
+                    // Width dim (below)
+                    drawDim(ctx, x, wallY + d + 30, x + w, wallY + d + 30, item.width);
+
+                    // Depth dim (Right side of module)
+                    // Draw slightly inside the right edge so it's visible on top of next module?
+                    // OR Draw covering the depth.
+                    // Let's draw it at x + w - 15 (inside right edge).
+                    drawDim(ctx, x + w - 15, wallY, x + w - 15, wallY + d, item.depth, true, true);
+                });
+            }
+
+            ctx.fillStyle = "#000"; ctx.font = "bold 20px 'Roboto Mono'"; ctx.textAlign = "left"; ctx.fillText("PŮDORYS", 20, 40);
+        }
+
+        // --- VIEW: SIDE (BOKORYS) ---
+        function drawSide({ ctx, scale, startX, toPx, items, canvas }) {
+            const floorY = canvas.height - 60; // Standardized floorY
+            const wallX = startX;
+            const toY = (hFromFloor) => floorY - toPx(hFromFloor);
+            const cabinetFill = getDecorFill();
+            const showDims = document.getElementById('showDims').checked;
+
+            // Draw Floor line
+            ctx.beginPath(); ctx.moveTo(0, floorY); ctx.lineTo(canvas.width, floorY); ctx.strokeStyle = "#888"; ctx.lineWidth = 1; ctx.stroke();
+
+            items.forEach(item => {
+                const w = toPx(item.depth); // In side view, depth becomes width
+                const h = toPx(item.height);
+                const x = wallX;
+                const y = toY(item.elevation + item.height);
+
+                ctx.fillStyle = cabinetFill; ctx.fillRect(x, y, w, h);
+                ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
+
+                if (item.elevation > 0) {
+                    const ph = toPx(item.elevation);
+                    const py = toY(item.elevation);
+                    const recess = toPx(30);
+                    ctx.fillStyle = "#fff"; ctx.fillRect(x, py, w - recess, ph);
+                    ctx.strokeRect(x, py, w - recess, ph);
+                }
+
+                if (item.type === 'base') {
+                    const wtH = toPx(getWorktopThickness());
+                    const wtY = toY(item.elevation + item.height + getWorktopThickness());
+                    const overhang = toPx(20);
+                    ctx.fillStyle = "#d1d5db"; ctx.fillRect(x, wtY, w + overhang, wtH); ctx.strokeRect(x, wtY, w + overhang, wtH);
+                }
+
+                if (showDims) {
+                    drawDim(ctx, wallX - 40, toY(item.elevation + item.height), wallX - 40, toY(item.elevation), item.height, true);
+                    drawDim(ctx, wallX, floorY + 20, wallX + toPx(item.depth), floorY + 20, item.depth);
+                    if (item.type === 'wall') {
+                        drawDim(ctx, wallX - 20, toY(item.elevation), wallX - 20, floorY, item.elevation, true);
+                    }
+                }
+            });
+
+            ctx.fillStyle = "#000"; ctx.font = "bold 20px 'Roboto Mono'"; ctx.textAlign = "left";
+            ctx.fillText("BOKORYS (ŘEZ)", 20, 40);
+        }
+
+        function update3DWall() {
+            if (currentView === '3d' && scene) {
+                const wall = scene.getObjectByName('backWall');
+                if (wall) {
+                    const w = parseFloat(document.getElementById('wallW')?.value || document.getElementById('wallWidth')?.value) || 5000;
+                    const h = parseFloat(document.getElementById('wallH')?.value || document.getElementById('wallHeight')?.value) || 3000;
+                    const color = document.getElementById('wallColor').value;
+
+                    // Rebuild geometry
+                    wall.geometry.dispose();
+                    wall.geometry = new THREE.PlaneGeometry(w, h);
+                    // Update material to Basic to match init3D
+                    wall.material.dispose();
+                    wall.material = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide });
+
+                    // Helper: Recalculate TRUE center
+                    const prepared = getPreparedModules();
+                    let minX = Infinity, maxX = -Infinity;
+                    if (prepared.length > 0) {
+                        prepared.forEach(m => {
+                            if (m.x < minX) minX = m.x;
+                            if (m.x + m.width > maxX) maxX = m.x + m.width;
+                        });
+                    } else {
+                        minX = 0; maxX = 2000;
+                    }
+                    const centerX = (minX + maxX) / 2;
+
+                    wall.position.set(centerX, h / 2, -20);
+                }
+            }
+        }
+
+        // Shared helpers
+        function drawDoorSwing(ctx, x, y, w, h, hinge) {
+            ctx.beginPath();
+            ctx.strokeStyle = "#ef4444";
+
+            if (hinge === 'left') {
+                ctx.moveTo(x, y); ctx.lineTo(x + w, y + h / 2); ctx.lineTo(x, y + h);
+            } else if (hinge === 'right') {
+                ctx.moveTo(x + w, y); ctx.lineTo(x, y + h / 2); ctx.lineTo(x + w, y + h);
+            }
+            ctx.stroke();
+        }
+
+        function drawDim(ctx, x1, y1, x2, y2, text, isVert = false, isSmall = false) {
+            ctx.beginPath();
+            ctx.strokeStyle = isSmall ? "#666" : "#444";
+            ctx.lineWidth = 1;
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            const tickSize = isSmall ? 2 : 4;
+            if (isVert) {
+                ctx.beginPath(); ctx.moveTo(x1 - tickSize, y1); ctx.lineTo(x1 + tickSize, y1); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x2 - tickSize, y2); ctx.lineTo(x2 + tickSize, y2); ctx.stroke();
+            } else {
+                ctx.beginPath(); ctx.moveTo(x1, y1 - tickSize); ctx.lineTo(x1, y1 + tickSize); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x2, y2 - tickSize); ctx.lineTo(x2, y2 + tickSize); ctx.stroke();
+            }
+
+            ctx.fillStyle = "#000";
+            ctx.font = isSmall ? "bold 10px sans-serif" : "bold 12px sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            const midX = Math.round((x1 + x2) / 2);
+            const midY = Math.round((y1 + y2) / 2);
+
+            ctx.fillStyle = "rgba(255,255,255,0.9)";
+            if (isVert) {
+                ctx.save();
+                ctx.translate(midX, midY);
+                ctx.rotate(-Math.PI / 2);
+                ctx.fillRect(-15, -7, 30, 14);
+                ctx.fillStyle = "#000";
+                ctx.fillText(text, 0, 0);
+                ctx.restore();
+            } else {
+                ctx.fillRect(midX - 15, midY - 7, 30, 14);
+                ctx.fillStyle = "#000";
+                ctx.fillText(text, midX, midY);
+            }
+        }
+
+        function downloadImage() {
+            if (currentView === '3d') {
+                if (!renderer) return;
+                const link = document.createElement('a');
+                link.download = `kuchyn-vykres-3d-${new Date().getTime()}.png`;
+                link.href = renderer.domElement.toDataURL();
+                link.click();
+                return;
+            }
+            const link = document.createElement('a');
+            link.download = `kuchyn-vykres-${currentView}-${new Date().getTime()}.png`;
+            link.href = document.getElementById('canvas').toDataURL();
+            link.click();
+        }
+
+        async function downloadPDF() {
+            const { jsPDF } = window.jspdf;
+
+            // Helper to capture a specific view
+            const captureView = async (viewName) => {
+                const oldView = currentView;
+                const canvas = document.getElementById('canvas');
+
+                if (viewName === '3d') {
+                    if (oldView !== '3d') {
+                        document.getElementById('canvas').classList.add('hidden');
+                        document.getElementById('canvas3d').classList.remove('hidden');
+                        currentView = '3d';
+                        if (!renderer) init3D();
+                        update3DMaterial();
+                        await new Promise(r => setTimeout(r, 200));
+                    }
+                    renderer.render(scene, camera);
+                    return renderer.domElement.toDataURL('image/png', 0.95);
+                } else {
+                    setView(viewName);
+                    draw();
+                    return canvas.toDataURL('image/png');
+                }
+            };
+
+            const prevView = currentView;
+            const btn = document.querySelector('button[onclick="downloadPDF()"]');
+            const originalBtnText = btn.innerHTML;
+            btn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generuji...';
+            btn.disabled = true;
+
+
+            try {
+                // Load font with Czech support
+                const fontBytes = await fetch("https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Regular.ttf").then(res => res.arrayBuffer());
+
+                const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+                // Add Font
+                doc.addFileToVFS("Roboto-Regular.ttf", arrayBufferToBase64(fontBytes));
+                doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
+                doc.setFont("Roboto");
+
+                const projName = document.getElementById('projName').value || "Kuchyně";
+                const author = document.getElementById('projAuthor').value || "Neznámý";
+                const date = new Date().toLocaleDateString();
+
+                // PAGE 1: 3D + Metadata + List
+                doc.setFontSize(22); doc.setTextColor(30, 58, 138); // Blue 900
+                doc.text(projName, 20, 20);
+                doc.setFontSize(12); doc.setTextColor(100);
+                doc.text(`Autor: ${author} | Datum: ${date}`, 20, 28);
+                doc.setDrawColor(200); doc.line(20, 32, 277, 32);
+
+                // 3D Image
+                const img3D = await captureView('3d');
+                const props3D = doc.getImageProperties(img3D);
+                const ratio3D = Math.min(160 / props3D.width, 140 / props3D.height); // Allow more height
+                doc.addImage(img3D, 'PNG', 20, 40, props3D.width * ratio3D, props3D.height * ratio3D);
+
+                // Kusovník (Right side)
+                doc.setFontSize(14); doc.setTextColor(0);
+                doc.text("Seznam Prvků:", 190, 40);
+                doc.setFontSize(9);
+                let y = 50;
+                modules.forEach((m, i) => {
+                    if (y > 180) return; // cut off
+                    let typeName = m.type === 'base' ? 'Spodní' : (m.type === 'wall' ? 'Horní' : 'Vysoká');
+                    doc.text(`${i + 1}. ${typeName} ${m.width}cm`, 190, y, { fontStyle: 'bold' });
+                    y += 5;
+                    m.appliances.forEach(app => {
+                        doc.text(` + ${APPLIANCE_TYPES[app.type].label}`, 195, y);
+                        y += 4;
+                    });
+                    y += 2;
+                });
+
+                // PAGE 2: Nárys (Front)
+                doc.addPage();
+                doc.setFontSize(18); doc.text("Nárys", 20, 20);
+                const imgFront = await captureView('front');
+                let props = doc.getImageProperties(imgFront);
+                let ratio = Math.min(250 / props.width, 160 / props.height);
+                doc.addImage(imgFront, 'PNG', 20, 30, props.width * ratio, props.height * ratio);
+
+                // PAGE 3: Půdorys (Top)
+                doc.addPage();
+                doc.setFontSize(18); doc.text("Půdorys", 20, 20);
+                const imgTop = await captureView('top');
+                props = doc.getImageProperties(imgTop);
+                ratio = Math.min(250 / props.width, 160 / props.height);
+                doc.addImage(imgTop, 'PNG', 20, 30, props.width * ratio, props.height * ratio);
+
+                // PAGE 4: Bokorys (Side)
+                doc.addPage();
+                doc.setFontSize(18); doc.text("Bokorys", 20, 20);
+                const imgSide = await captureView('side');
+                props = doc.getImageProperties(imgSide);
+                ratio = Math.min(250 / props.width, 160 / props.height);
+                doc.addImage(imgSide, 'PNG', 20, 30, props.width * ratio, props.height * ratio);
+
+                doc.save(`${projName.replace(/\s+/g, '_')}.pdf`);
+
+            } catch (e) {
+                console.error(e);
+                alert("Chyba při generování PDF: " + e.message);
+            } finally {
+                // Restore logic
+                setView(prevView);
+                btn.innerHTML = originalBtnText;
+                btn.disabled = false;
+            }
+        }
+
+        // Wrap downloadPDF to save state properly, or modify above.
+        // Let's modify the Start of downloadPDF to save wall.
+
+
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            const len = bytes.byteLength;
+            for (let i = 0; i < len; i++) { binary += String.fromCharCode(bytes[i]); }
+            return window.btoa(binary);
+        }
+
+        // --- 3D VIEW LOGIC using THREE.JS ---
+        let scene, camera, renderer, controls;
+        let animationFrameId;
+
+        function init3D() {
+            if (renderer) return; // one time init
+
+            const container = document.getElementById('canvas3d');
+            const w = container.clientWidth;
+            const h = container.clientHeight || 600;
+
+            scene = new THREE.Scene();
+            const bgCol = 0xf3f4f6; // Revert to light background
+            scene.background = new THREE.Color(bgCol);
+
+            // Environment (Fog makes it look more realistic depth)
+            // Fog start at 5000, end at 40000 to keep it subtle
+            scene.fog = new THREE.Fog(bgCol, 5000, 40000);
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, w / h, 10, 30000);
+            camera.position.set(2000, 1800, 3000); // Isometric-ish view
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); // optimize
+            renderer.setSize(w, h);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 500;
+            controls.maxDistance = 6000;
+            controls.target.set(1000, 800, 0);
+
+            // Lighting - ENHANCED (Semi-Realistic)
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambient);
+
+            const dirLight = new THREE.DirectionalLight(0xfff5e6, 1.1); // Warm Sun intensity up
+            dirLight.position.set(1500, 4500, 3000);
+            dirLight.castShadow = true;
+            dirLight.shadow.bias = -0.0001;
+            dirLight.shadow.mapSize.width = 4096; // Crisp shadows
+            dirLight.shadow.mapSize.height = 4096;
+            dirLight.shadow.normalBias = 0.02; // Reduce shadow acne
+            scene.add(dirLight);
+
+            const hemiLight = new THREE.HemisphereLight(0xeef2ff, 0x555555, 0.5); // Cool Sky / Warm Ground
+            scene.add(hemiLight);
+
+            // Tone Mapping to handle bright highlights better
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+
+            // Walls & Floor
+            // Back Wall
+            const wallW = parseFloat(document.getElementById('wallW')?.value || document.getElementById('wallWidth')?.value) || 5000;
+            const wallH = parseFloat(document.getElementById('wallH')?.value || document.getElementById('wallHeight')?.value) || 3000;
+            const wallColor = document.getElementById('wallColor')?.value || "#f3f4f6";
+
+            // Calculate kitchen TRUE center
+            const prepared = getPreparedModules();
+            let minX = Infinity, maxX = -Infinity;
+            if (prepared.length > 0) {
+                prepared.forEach(m => {
+                    if (m.x < minX) minX = m.x;
+                    if (m.x + m.width > maxX) maxX = m.x + m.width;
+                });
+            } else {
+                minX = 0; maxX = 2000;
+            }
+            const centerX = (minX + maxX) / 2;
+
+            const geometry = new THREE.PlaneGeometry(wallW, wallH);
+            // Use BASIC material to ensure color is exactly what user wants, unaffected by light/shadow
+            const material = new THREE.MeshBasicMaterial({ color: wallColor, side: THREE.DoubleSide });
+            const backWall = new THREE.Mesh(geometry, material);
+            backWall.name = "backWall"; // ID for updates
+            backWall.position.set(centerX, wallH / 2, -20); // Centered on kitchen content
+            // backWall.receiveShadow = false; // Not needed for BasicMaterial
+            scene.add(backWall);
+
+            // Floor - Wood Texture
+            const floorGeo = new THREE.PlaneGeometry(10000, 10000);
+            const floorTex = getTexture('floor_wood');
+            floorTex.wrapS = THREE.RepeatWrapping;
+            floorTex.wrapT = THREE.RepeatWrapping;
+            floorTex.repeat.set(20, 20);
+            const floorMat = new THREE.MeshStandardMaterial({
+                map: floorTex,
+                roughness: 0.6,
+                metalness: 0.05
+            });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = 0;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Render loop
+            animate3D();
+
+            window.addEventListener('resize', () => {
+                if (currentView === '3d' && renderer) {
+                    const rect = container.getBoundingClientRect();
+                    camera.aspect = rect.width / rect.height;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(rect.width, rect.height);
+                }
+            });
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+            if (controls) controls.update();
+            if (renderer && scene && camera && currentView === '3d') {
+                renderer.render(scene, camera);
+            }
+        }
+
+        function update3DMaterial() {
+            if (currentView === '3d') draw3D();
+        }
+
+        function draw3D() {
+            if (!scene) return;
+
+            // Clear old modules
+            const oldGroup = scene.getObjectByName('kitchenGroup');
+            if (oldGroup) scene.remove(oldGroup);
+
+            const group = new THREE.Group();
+            group.name = 'kitchenGroup';
+
+            const items = getPreparedModules();
+            // Materials
+            // Re-implement material props logic inline to fix "White Front" issue
+            const decor = document.getElementById('decorSelect').value;
+            let matColor = 0xffffff;
+            let matMap = null;
+            let matRoughness = 0.8;
+            let matMetalness = 0.0;
+
+            // Textures & Colors - Explicit Mapping
+            // Wood
+            if (decor === 'oak') { matMap = getTexture('wood_oak'); matRoughness = 0.7; matColor = 0xffffff; }
+            else if (decor === 'oak_dark') { matMap = getTexture('wood_dark'); matRoughness = 0.7; matColor = 0xffffff; }
+            else if (decor === 'walnut') { matMap = getTexture('wood_dark'); matRoughness = 0.7; matColor = 0xdddddd; } // Tint walnut slightly
+            else if (decor === 'pine') { matMap = getTexture('wood_pine'); matRoughness = 0.7; matColor = 0xffffff; }
+
+            // Stone/Concrete
+            else if (decor === 'concrete') { matMap = getTexture('concrete'); matRoughness = 0.9; matColor = 0xffffff; }
+            else if (decor === 'concrete_light') { matMap = getTexture('concrete'); matRoughness = 0.9; matColor = 0xf3f4f6; } // Lighter
+            else if (decor === 'marble') { matMap = getTexture('marble'); matRoughness = 0.2; matColor = 0xffffff; }
+            else if (decor === 'stone_black') { matMap = getTexture('stone_black'); matRoughness = 0.8; matColor = 0xffffff; }
+
+            // Solid Colors
+            else {
+                if (decor === 'white_matte') { matColor = 0xffffff; matRoughness = 0.8; }
+                else if (decor === 'white_gloss') { matColor = 0xffffff; matRoughness = 0.2; }
+                else if (decor === 'grey_matte') { matColor = 0xe5e7eb; matRoughness = 0.8; }
+                else if (decor === 'black_matte') { matColor = 0x1f2937; matRoughness = 0.8; }
+                else if (decor === 'cashmere') { matColor = 0xe6d0b3; matRoughness = 0.8; } // Warm Beige
+                else if (decor === 'navy') { matColor = 0x1e3a8a; matRoughness = 0.8; }
+                else if (decor === 'forest') { matColor = 0x064e3b; matRoughness = 0.8; }
+                else {
+                    // Fallback
+                    const fill = getDecorFill();
+                    matColor = new THREE.Color(fill);
+                    matRoughness = 0.8;
+                }
+            }
+
+            // Use Standard Material (not Physical) to avoid excessive Clearcoat reflection
+            const cabinetMat = new THREE.MeshStandardMaterial({
+                color: matColor,
+                map: matMap || null,
+                roughness: matRoughness,
+                metalness: 0, // Keep metalness low for wood/paint
+                side: THREE.DoubleSide
+            });
+            // Worktop: set color to white so texture color shows, or light grey
+            const wtDecorKey = document.getElementById('wtDecorSelect').value;
+            const wtStyle = getWorktopStyle(wtDecorKey);
+            const worktopMat = new THREE.MeshStandardMaterial({
+                color: wtStyle.color,
+                roughness: wtStyle.roughness,
+                map: wtStyle.map
+            });
+
+            const plinthMat = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.5 });
+            const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.0, metalness: 0.9, transmission: 0.1, transparent: true, opacity: 0.7 });
+            const steelMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.3, metalness: 0.8 });
+            const handleColorType = document.getElementById('handleSelect').value;
+            let handleColorHex = 0xcccccc;
+            if (handleColorType === 'black') handleColorHex = 0x111111;
+            if (handleColorType === 'gold') handleColorHex = 0xd4af37;
+            const handleMat = new THREE.MeshStandardMaterial({ color: handleColorHex, roughness: 0.3, metalness: 0.8 });
+            const socketMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+
+            items.forEach(item => {
+                // Determine geometric center for BoxGeometry
+                // item.x is left edge, item.elevation is bottom elevation
+                // 3D coordinate system: X = right, Y = up, Z = depth (we will use Z- as back?)
+                // Let's align: X = startX, Y = elevation, Z = 0 (wall) -> +Z (room)
+
+                const w = item.width;
+                const h = item.height;
+                const d = item.depth;
+
+                // Group to hold module
+                const modGroup = new THREE.Group();
+                modGroup.position.set(item.x, 0, 0);
+                group.add(modGroup);
+
+                // --- REFRACTORED GEOMETRY GENERATION ---
+                // Separate Carcass (Korpus) and Fronts (Dvířka/Čela)
+
+                const thick = 18; // mm (Carcass material)
+                const frontThick = 18; // mm
+                const gap = 2; // mm (gaps between fronts)
+                const carcassD = d - frontThick; // Depth of the box itself
+                const carcassColor = 0xffffff; // White corpus default
+                const carcassMat = new THREE.MeshStandardMaterial({ color: carcassColor, roughness: 0.8 });
+
+                // 1. CARCASS GENERATION
+                const carcassGroup = new THREE.Group();
+                carcassGroup.position.set(0, item.elevation, 0); // Local to modGroup (which is at item.x)
+
+                // Left Side - USE DECOR (cabinetMat)
+                const sideL = new THREE.Mesh(new THREE.BoxGeometry(thick, h, carcassD), cabinetMat);
+                sideL.position.set(thick / 2, h / 2, carcassD / 2);
+                carcassGroup.add(sideL);
+
+                // Right Side - USE DECOR (cabinetMat)
+                const sideR = new THREE.Mesh(new THREE.BoxGeometry(thick, h, carcassD), cabinetMat);
+                sideR.position.set(w - thick / 2, h / 2, carcassD / 2);
+                carcassGroup.add(sideR);
+
+                // Bottom (Dno) - USE DECOR (cabinetMat)
+                const bot = new THREE.Mesh(new THREE.BoxGeometry(w - 2 * thick, thick, carcassD), cabinetMat);
+                bot.position.set(w / 2, thick / 2, carcassD / 2);
+                carcassGroup.add(bot);
+
+                // Top (Půda) or Strips
+                if (item.type === 'base') {
+                    // Base cabinets: 2 strips (svlaky) - Keep WHITE or user decor? Usually white but let's match default
+                    // Actually, strips are usually white. But user said "all sides". Let's stick to CARCASS MAT for internal strips if invisible, but cabinetMat for visible.
+                    // But these are barely visible. Let's use cabinetMat for consistency "like before".
+                    const stripF = new THREE.Mesh(new THREE.BoxGeometry(w - 2 * thick, thick, 80), cabinetMat);
+                    stripF.position.set(w / 2, h - thick / 2, 80 / 2); // Front strip
+                    carcassGroup.add(stripF);
+
+                    const stripB = new THREE.Mesh(new THREE.BoxGeometry(w - 2 * thick, thick, 80), cabinetMat);
+                    stripB.position.set(w / 2, h - thick / 2, carcassD - 80 / 2); // Back strip
+                    carcassGroup.add(stripB);
+                } else {
+                    // Wall/Tall: Full top - USE DECOR
+                    const top = new THREE.Mesh(new THREE.BoxGeometry(w - 2 * thick, thick, carcassD), cabinetMat);
+                    top.position.set(w / 2, h - thick / 2, carcassD / 2);
+                    carcassGroup.add(top);
+                }
+
+                // Back (Záda) - Thin HDF - Keep White/Grey (backMat)
+                const backMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+                const backPanel = new THREE.Mesh(new THREE.BoxGeometry(w - 2, h - 2, 3), backMat);
+                backPanel.position.set(w / 2, h / 2, 1.5); // At the very back
+                carcassGroup.add(backPanel);
+
+                // Shelves (internal) - Usually white, but let's make them match carcass for now
+                const shelfCount = item.shelves || (item.type === 'base' ? 1 : (item.type === 'tall' ? 3 : 1));
+                if (item.type !== 'base' || (item.hinge !== 'none' && !item.appliances.some(a => a.type === 'drawer_unit'))) {
+                    // Draw shelves only if not full of drawers
+                    const shelfSpacing = (h - 2 * thick) / (shelfCount + 1);
+                    for (let s = 1; s <= shelfCount; s++) {
+                        const shelf = new THREE.Mesh(new THREE.BoxGeometry(w - 2 * thick, thick, carcassD - 20), cabinetMat);
+                        shelf.position.set(w / 2, s * shelfSpacing + thick, carcassD / 2 + 10);
+                        carcassGroup.add(shelf);
+                    }
+                }
+
+                modGroup.add(carcassGroup);
+
+
+                // 2. FRONTS GENERATION (Doors / Drawers)
+                // Fronts sit at Z = carcassD + frontThick/2
+
+                const frontsGroup = new THREE.Group();
+                frontsGroup.position.set(0, item.elevation, carcassD);
+
+                // Check if Drawer Unit
+                const drawerUnit = item.appliances.find(a => a.type === 'drawer_unit');
+
+                if (drawerUnit) {
+                    // --- DRAWERS ---
+                    const count = drawerUnit.count || 3;
+                    const drawerH = (h - gap * (count - 1)) / count;
+
+                    for (let i = 0; i < count; i++) {
+                        const yPos = i * (drawerH + gap);
+                        const frontGeo = new THREE.BoxGeometry(w - 2, drawerH, frontThick);
+                        const frontMesh = new THREE.Mesh(frontGeo, cabinetMat); // Use Decor
+                        frontMesh.position.set(w / 2, yPos + drawerH / 2, frontThick / 2);
+                        frontMesh.castShadow = true; frontMesh.receiveShadow = true;
+                        frontsGroup.add(frontMesh);
+
+                        // Handle (Centered)
+                        const hH = 120; // Handle width/length
+                        const handleGrp = new THREE.Group();
+                        // Bar
+                        const bar = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, hH, 8), handleMat);
+                        bar.rotation.z = Math.PI / 2; // Horizontal for drawers
+                        handleGrp.add(bar);
+                        // Posts
+                        const post1 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
+                        post1.rotation.x = Math.PI / 2; post1.position.x = -hH / 2 + 10; post1.position.z = -12;
+                        handleGrp.add(post1);
+                        const post2 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
+                        post2.rotation.x = Math.PI / 2; post2.position.x = hH / 2 - 10; post2.position.z = -12;
+                        handleGrp.add(post2);
+
+                        handleGrp.position.set(w / 2, yPos + drawerH * 0.7, frontThick + 25);
+                        frontsGroup.add(handleGrp);
+                    }
+
+                } else if (item.hinge !== 'none') {
+                    // --- DOORS ---
+                    // Support Split Doors (Tall Cabinet)
+                    // Support Split Doors (Universal)
+                    let segments = [];
+                    // Remove "item.type === 'tall'" check to allow splits on any cabinet
+                    if (item.doorSplit > 0 && item.doorSplit < item.height) {
+                        segments.push({ min: 0, max: item.doorSplit });
+                        segments.push({ min: item.doorSplit, max: item.height });
+                    } else {
+                        segments.push({ min: 0, max: item.height });
+                    }
+
+                    segments.forEach((seg, idx) => {
+                        const segH = seg.max - seg.min;
+                        // Reduce height slightly for gaps
+                        const visH = segH - gap;
+                        const visY = seg.min + gap / 2; // Offset
+
+                        const pg = new THREE.BoxGeometry(w - 2, visH, frontThick);
+                        const pm = new THREE.Mesh(pg, cabinetMat);
+                        pm.position.set(w / 2, visY + visH / 2, frontThick / 2);
+                        pm.castShadow = true; pm.receiveShadow = true;
+                        frontsGroup.add(pm);
+
+                        // Handle
+                        const hH = 120;
+                        const handleGrp = new THREE.Group();
+                        const bar = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, hH, 8), handleMat);
+                        handleGrp.add(bar);
+                        const post1 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
+                        post1.rotation.x = Math.PI / 2; post1.position.y = hH / 2 - 10; post1.position.z = -12;
+                        handleGrp.add(post1);
+                        const post2 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
+                        post2.rotation.x = Math.PI / 2; post2.position.y = -hH / 2 + 10; post2.position.z = -12;
+                        handleGrp.add(post2);
+
+                        let hx, hy;
+                        const pad = 80;
+                        // Use Global Orientation
+                        const globalOrientation = document.getElementById('handleOrientationGlobal') ? document.getElementById('handleOrientationGlobal').value : 'vertical';
+                        const isHoriz = globalOrientation === 'horizontal';
+                        if (isHoriz) handleGrp.rotation.z = Math.PI / 2;
+
+                        // Vertical Handle Position
+                        if (item.type === 'base') {
+                            hy = visY + visH - pad;
+                        } else if (item.type === 'wall') {
+                            hy = visY + pad;
+                        } else {
+                            // Split Logic
+                            if (seg.min === 0) {
+                                hy = visY + visH - pad;
+                            } else {
+                                hy = visY + pad;
+                            }
+                        }
+
+                        // Horizontal Position
+                        const hPad = isHoriz ? 80 : 40;
+                        hx = (item.hinge === 'left') ? w - hPad : hPad;
+
+                        handleGrp.position.set(hx, hy, frontThick + 25);
+                        frontsGroup.add(handleGrp);
+                    });
+                }
+
+                modGroup.add(frontsGroup);
+
+                // Drawer handles if drawer unit - REMOVED (Handled in Fronts logic above)
+
+
+                // Plinth (Sokl)
+                if (item.type !== 'wall' && item.elevation > 0) {
+                    const pGeo = new THREE.BoxGeometry(w - 10, item.elevation, d - 40);
+                    const pMesh = new THREE.Mesh(pGeo, plinthMat);
+                    pMesh.position.set(w / 2, item.elevation / 2, (d - 40) / 2 + 20); // Recessed
+                    modGroup.add(pMesh);
+                }
+
+                // Worktop with CUTOUT
+                if (item.type === 'base') {
+                    // Check for surface appliances
+                    const surfApp = item.appliances.find(a => APPLIANCE_TYPES[a.type].isSurface);
+
+                    if (surfApp && (surfApp.type === 'sink' || surfApp.type === 'hob')) {
+                        const wtH = getWorktopThickness();
+                        const wtY = item.elevation + h + wtH / 2;
+                        const cx = w / 2; const cz = (d + 20) / 2 + 2; // Center of WorktopBox
+
+                        const appW = w * 0.7; // Cutout size
+                        const appD = d * 0.6;
+
+                        // We construct 4 boxes around the cutout
+                        const fullW = w; const fullD = d + 20;
+                        const sideW = (fullW - appW) / 2;
+                        const frontD = (fullD - appD) / 2; // approx, depending on pos
+
+                        // Left Piece
+                        const meshL = new THREE.Mesh(new THREE.BoxGeometry(sideW, wtH, fullD), worktopMat);
+                        meshL.position.set(sideW / 2, wtY, cz);
+                        meshL.receiveShadow = true; meshL.castShadow = true;
+                        modGroup.add(meshL);
+                        // Right Piece
+                        const meshR = new THREE.Mesh(new THREE.BoxGeometry(fullW - sideW - appW, wtH, fullD), worktopMat); // Adjusted width for right piece
+                        meshR.position.set(fullW - (fullW - sideW - appW) / 2, wtY, cz);
+                        meshR.receiveShadow = true; meshR.castShadow = true;
+                        modGroup.add(meshR);
+                        // Front Strip
+                        const meshF = new THREE.Mesh(new THREE.BoxGeometry(appW, wtH, (fullD - appD) / 2), worktopMat);
+                        meshF.position.set(cx, wtY, cz + appD / 2 + (fullD - appD) / 4);
+                        meshF.receiveShadow = true; meshF.castShadow = true;
+                        modGroup.add(meshF);
+                        // Back Strip
+                        const meshB = new THREE.Mesh(new THREE.BoxGeometry(appW, wtH, (fullD - appD) / 2), worktopMat);
+                        meshB.position.set(cx, wtY, cz - appD / 2 - (fullD - appD) / 4);
+                        meshB.receiveShadow = true; meshB.castShadow = true;
+                        modGroup.add(meshB);
+
+                    } else {
+                        // Full slab
+                        const wtH = getWorktopThickness();
+                        const wtGeo = new THREE.BoxGeometry(w, wtH, d + 20);
+                        const wtMesh = new THREE.Mesh(wtGeo, worktopMat);
+                        wtMesh.position.set(w / 2, item.elevation + h + wtH / 2, (d + 20) / 2 + 2);
+                        wtMesh.castShadow = true;
+                        wtMesh.receiveShadow = true;
+                        modGroup.add(wtMesh);
+                    }
+                }
+
+                // Appliances
+                item.appliances.forEach(app => {
+                    const isSurface = APPLIANCE_TYPES[app.type].isSurface;
+                    const isSocket = app.type === 'socket';
+
+                    if (isSocket) {
+                        const count = app.count || 1;
+                        let startSockX = (app.offX !== undefined) ? item.x + app.offX : item.x + (w - count * 80) / 2;
+                        const sY = item.elevation + app.pos + 40; // center
+
+                        for (let i = 0; i < count; i++) {
+                            // Socket Frame - High contrast
+                            const sGeo = new THREE.BoxGeometry(84, 84, 6);
+                            // Border black
+                            const sMeshBorder = new THREE.Mesh(sGeo, new THREE.MeshBasicMaterial({ color: 0x000000 }));
+                            sMeshBorder.position.set((app.offX !== undefined ? app.offX : (w - count * 80) / 2) + i * 80 + 40, sY, -16); // On wall
+                            modGroup.add(sMeshBorder);
+
+                            // Inner White
+                            const sGeoIn = new THREE.BoxGeometry(76, 76, 8);
+                            const sMesh = new THREE.Mesh(sGeoIn, socketMat);
+                            sMesh.position.set((app.offX !== undefined ? app.offX : (w - count * 80) / 2) + i * 80 + 40, sY, -15);
+                            modGroup.add(sMesh);
+
+                            // Pin holes
+                            const hGeo = new THREE.CylinderGeometry(3.5, 3.5, 5, 16);
+                            hGeo.rotateX(Math.PI / 2);
+                            const h1 = new THREE.Mesh(hGeo, new THREE.MeshBasicMaterial({ color: 0x000000 }));
+                            h1.position.set((app.offX !== undefined ? app.offX : (w - count * 80) / 2) + i * 80 + 25, sY, -10);
+                            modGroup.add(h1);
+                            const h2 = new THREE.Mesh(hGeo, new THREE.MeshBasicMaterial({ color: 0x000000 }));
+                            h2.position.set((app.offX !== undefined ? app.offX : (w - count * 80) / 2) + i * 80 + 55, sY, -10);
+                            modGroup.add(h2);
+                            // Pin
+                            const pin = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 8, 8), new THREE.MeshStandardMaterial({ color: 0x888888 }));
+                            pin.rotateX(Math.PI / 2);
+                            pin.position.set((app.offX !== undefined ? app.offX : (w - count * 80) / 2) + i * 80 + 40, sY - 15, -10);
+                            modGroup.add(pin);
+                        }
+                        return;
+                    }
+
+                    // ... Appliances logic ...
+                    if (isSurface) {
+                        // Sink / Hob
+                        const appW = w * 0.7;
+                        const appD = d * 0.6;
+
+                        // Hob Details
+                        if (app.type === 'hob') {
+                            const aH = 5;
+                            const aGeo = new THREE.BoxGeometry(appW, aH, appD);
+                            const aMesh = new THREE.Mesh(aGeo, glassMat);
+                            aMesh.position.set(w / 2, item.elevation + h + getWorktopThickness() + 2.5, d / 2 + 10);
+                            modGroup.add(aMesh);
+
+                            const zGeo = new THREE.CylinderGeometry(40, 40, 2, 32);
+                            const zMesh = new THREE.Mesh(zGeo, new THREE.MeshBasicMaterial({ color: 0x333333 }));
+                            zMesh.position.set(w / 2 - 50, item.elevation + h + getWorktopThickness() + 4, d / 2 + 10);
+                            modGroup.add(zMesh);
+                            const zMesh2 = zMesh.clone();
+                            zMesh2.position.set(w / 2 + 50, item.elevation + h + getWorktopThickness() + 4, d / 2 + 10);
+                            modGroup.add(zMesh2);
+                        }
+
+                        // Tap (Sink) & Hollow Sink
+                        if (app.type === 'sink') {
+                            const basinD = 150;
+                            // Cutout area (We just build walls around it or simply a box sinking in)
+                            // A simple hollow box: bottom + 4 walls
+                            const sThick = 5;
+                            const basinColor = 0xcccccc; // Steel or Granite
+                            const sMat = new THREE.MeshStandardMaterial({ color: basinColor, roughness: 0.4, metalness: 0.6 });
+
+                            const cx = w / 2; const cy = item.elevation + h + getWorktopThickness(); const cz = d / 2 + 10;
+
+                            // Bottom
+                            const bMesh = new THREE.Mesh(new THREE.BoxGeometry(appW, sThick, appD), sMat);
+                            bMesh.position.set(cx, cy - basinD, cz);
+                            modGroup.add(bMesh);
+                            // Front/Back Walls
+                            const wallF = new THREE.Mesh(new THREE.BoxGeometry(appW, basinD, sThick), sMat);
+                            wallF.position.set(cx, cy - basinD / 2, cz + appD / 2);
+                            modGroup.add(wallF);
+                            const wallB = new THREE.Mesh(new THREE.BoxGeometry(appW, basinD, sThick), sMat);
+                            wallB.position.set(cx, cy - basinD / 2, cz - appD / 2);
+                            modGroup.add(wallB);
+                            // L/R Walls
+                            const wallL = new THREE.Mesh(new THREE.BoxGeometry(sThick, basinD, appD), sMat);
+                            wallL.position.set(cx - appW / 2, cy - basinD / 2, cz);
+                            modGroup.add(wallL);
+                            const wallR = new THREE.Mesh(new THREE.BoxGeometry(sThick, basinD, appD), sMat);
+                            wallR.position.set(cx + appW / 2, cy - basinD / 2, cz);
+                            modGroup.add(wallR);
+
+                            // Tap
+                            const tGeo = new THREE.CylinderGeometry(8, 8, 120, 16);
+                            const tMesh = new THREE.Mesh(tGeo, steelMat);
+                            tMesh.position.set(cx, cy + 20, cz - appD / 2 - 10);
+                            modGroup.add(tMesh);
+                            const tSpoutGeo = new THREE.CylinderGeometry(6, 6, 80, 16);
+                            tSpoutGeo.rotateX(Math.PI / 2);
+                            const tSpout = new THREE.Mesh(tSpoutGeo, steelMat);
+                            tSpout.position.set(cx, cy + 80, cz - 20);
+                            modGroup.add(tSpout);
+                        }
+                    } else {
+                        // Built-in (Oven, Microwave, Fridge, etc)
+                        const aH = app.h;
+                        const appY_fromFloor = item.elevation + (app.pos || 0);
+
+                        // Unit Body
+                        let appColor = 0xffffff;
+                        // if(app.type === 'oven') appColor = 0x111111; 
+
+                        const aGeo = new THREE.BoxGeometry(w - 4, aH - 4, 10); // Front panel
+                        let aMat = cabinetMat; // Integrated by default for fridge/dishwasher
+
+                        if (['oven', 'microwave'].includes(app.type)) {
+                            // Oven Logic
+                            const ovenGrp = new THREE.Group();
+                            // Frame
+                            const fGeo = new THREE.BoxGeometry(w - 4, aH - 4, 5);
+                            const fMesh = new THREE.Mesh(fGeo, steelMat);
+                            fMesh.position.set(w / 2, appY_fromFloor + aH / 2, d + 2.5);
+                            ovenGrp.add(fMesh);
+                            // Glass
+                            const gGeo = new THREE.BoxGeometry(w - 30, aH - 40, 5);
+                            const gMesh = new THREE.Mesh(gGeo, glassMat);
+                            gMesh.position.set(w / 2, appY_fromFloor + aH / 2, d + 6);
+                            ovenGrp.add(gMesh);
+                            // Handle
+                            const hGeo = new THREE.BoxGeometry(w - 60, 10, 15);
+                            const hMesh = new THREE.Mesh(hGeo, steelMat);
+                            hMesh.position.set(w / 2, appY_fromFloor + aH - 40, d + 15);
+                            ovenGrp.add(hMesh);
+
+                            modGroup.add(ovenGrp);
+
+                        } else if (app.type === 'fridge') {
+                            // Fridge (Integrated usually has cabinet door)
+                            const fMesh = new THREE.Mesh(new THREE.BoxGeometry(w - 2, aH - 2, 20), cabinetMat);
+                            fMesh.position.set(w / 2, appY_fromFloor + aH / 2, d + 10);
+                            modGroup.add(fMesh);
+                            // Removed manual handle from fridge, rely on main cabinet handle
+                            // If needed, we could add a small handle if hinge is 'none', but usually fridge in cabinet has door.
+
+                        } else {
+                            // Generic appliance
+                        }
+                    }
+                });
+            });
+
+            scene.add(group);
+        }
+
+        // Helper
+        function hp_base_y(h) { return h - 50; }
+
+        window.onload = function () {
+            try {
+                init();
+            } catch (e) {
+                alert("Chyba při inicializaci: " + e.message + "\n" + e.stack);
+                console.error(e);
+            }
+        };
+        window.onresize = function () {
+            try {
+                draw();
+            } catch (e) {
+                console.error(e);
+            }
+        };
+    </script>
+</body>
+
+</html>
