@@ -1,13 +1,3 @@
-<script>
-  var password = "TvojeTajnéHeslo123"; // Tady si nastav svoje heslo
-  var input = prompt("Zadejte heslo pro přístup k aplikaci:");
-
-  if (input !== password) {
-    alert("Špatné heslo!");
-    document.body.innerHTML = ""; // Vymaže obsah stránky
-    window.location.replace("about:blank"); // Přesměruje na prázdnou stránku
-  }
-</script>
 <!DOCTYPE html>
 <html lang="cs">
 
@@ -60,6 +50,35 @@
 </head>
 
 <body class="bg-gray-100 text-gray-800 h-screen flex flex-col md:flex-row overflow-hidden">
+  <div id="loginOverlay" class="fixed inset-0 bg-blue-900 z-[100] flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md text-center">
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">Vstup do editoru</h2>
+        <p class="text-gray-600 mb-6 italic italic">Truhlářský plánovač nábytku</p>
+        <input type="password" id="passInput" placeholder="Zadejte heslo" 
+               class="w-full border-2 border-gray-300 rounded px-4 py-2 mb-4 focus:border-blue-500 outline-none">
+        <button onclick="checkMyPassword()" 
+                class="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 transition">
+            Vstoupit
+        </button>
+        <p id="errorMsg" class="text-red-500 mt-4 hidden">Špatné heslo, zkuste to znovu.</p>
+    </div>
+</div>
+
+<script>
+    function checkMyPassword() {
+        const h = "1234"; // Tady si dej své heslo
+        const input = document.getElementById('passInput').value;
+        if (input === h) {
+            document.getElementById('loginOverlay').style.display = 'none';
+        } else {
+            document.getElementById('errorMsg').classList.remove('hidden');
+        }
+    }
+    // Umožní potvrdit heslo klávesou Enter
+    document.getElementById('passInput').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') checkMyPassword();
+    });
+</script>
 
     <!-- LEVÝ PANEL: Ovládání -->
     <div class="w-full md:w-1/3 flex flex-col bg-white border-r border-gray-200 z-10 shadow-xl h-full">
@@ -2048,3 +2067,4 @@
 
 
 </html>
+
