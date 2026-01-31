@@ -50,35 +50,6 @@
 </head>
 
 <body class="bg-gray-100 text-gray-800 h-screen flex flex-col md:flex-row overflow-hidden">
-  <div id="loginOverlay" class="fixed inset-0 bg-blue-900 z-[100] flex items-center justify-center p-4">
-    <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md text-center">
-        <h2 class="text-2xl font-bold mb-4 text-gray-800">Vstup do editoru</h2>
-        <p class="text-gray-600 mb-6 italic italic">Truhlářský plánovač nábytku</p>
-        <input type="password" id="passInput" placeholder="Zadejte heslo" 
-               class="w-full border-2 border-gray-300 rounded px-4 py-2 mb-4 focus:border-blue-500 outline-none">
-        <button onclick="checkMyPassword()" 
-                class="w-full bg-blue-600 text-white font-bold py-2 rounded hover:bg-blue-700 transition">
-            Vstoupit
-        </button>
-        <p id="errorMsg" class="text-red-500 mt-4 hidden">Špatné heslo, zkuste to znovu.</p>
-    </div>
-</div>
-
-<script>
-    function checkMyPassword() {
-        const h = "kuchyne2024"; // Tady si dej své heslo
-        const input = document.getElementById('passInput').value;
-        if (input === h) {
-            document.getElementById('loginOverlay').style.display = 'none';
-        } else {
-            document.getElementById('errorMsg').classList.remove('hidden');
-        }
-    }
-    // Umožní potvrdit heslo klávesou Enter
-    document.getElementById('passInput').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') checkMyPassword();
-    });
-</script>
 
     <!-- LEVÝ PANEL: Ovládání -->
     <div class="w-full md:w-1/3 flex flex-col bg-white border-r border-gray-200 z-10 shadow-xl h-full">
@@ -93,118 +64,184 @@
                 Truhlářský Editor
             </h1>
 
-            <div class="space-y-4">
-                <!-- Project -->
+            <!-- REPAIRED SIDEBAR CONTENT -->
+            <div class="space-y-3">
+                <!-- 1. Project Info (Always Visible) -->
                 <div class="grid grid-cols-2 gap-2">
-                    <input id="projName" type="text" placeholder="Název" class="text-xs border rounded px-2 py-1 w-full"
-                        value="Moje Kuchyně">
-                    <input id="projAuthor" type="text" placeholder="Autor"
-                        class="text-xs border rounded px-2 py-1 w-full" value="Jan Novák">
-                </div>
-
-                <!-- Decor -->
-                <div>
-                    <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1">Dekor</label>
-                    <select id="decorSelect" onchange="draw(); update3DMaterial();"
-                        class="w-full border rounded p-1 text-xs">
-                        <optgroup label="Základní Barvy">
-                            <option value="white_matte" selected>Bílá Matná</option>
-                            <option value="white_gloss">Bílá Vysoký Lesk</option>
-                            <option value="grey_matte">Světle Šedá</option>
-                            <option value="black_matte">Černá Hluboký Mat</option>
-                            <option value="cashmere">Kašmír (Béžová)</option>
-                            <option value="navy">Námořnická Modrá</option>
-                            <option value="forest">Lesní Zelená</option>
-                        </optgroup>
-                        <optgroup label="Dřevodekory">
-                            <option value="oak">Dub Přírodní</option>
-                            <option value="oak_dark">Dub Tmavý / Tabák</option>
-                            <option value="walnut">Ořech Americký</option>
-                            <option value="pine">Borovice Světlá</option>
-                        </optgroup>
-                        <optgroup label="Kámen">
-                            <option value="concrete">Beton Tmavý</option>
-                            <option value="concrete_light">Beton Světlý</option>
-                            <option value="marble">Mramor Carrara</option>
-                            <option value="stone_black">Břidlice Černá</option>
-                        </optgroup>
-                    </select>
-                </div>
-
-                <!-- Handles -->
-                <div>
-                    <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1">Úchytky</label>
-                    <select id="handleSelect" onchange="update3DMaterial()" class="w-full border rounded p-1 text-xs">
-                        <option value="chrome">Chrom / Stříbrná</option>
-                        <option value="gold">Zlatá / Mosaz</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[10px] uppercase text-gray-500 font-bold mb-1">Orientace Úchytek</label>
-                    <select id="handleOrientationGlobal" onchange="draw(); if(currentView==='3d') draw3D();"
-                        class="w-full border rounded p-1 text-xs">
-                        <option value="vertical">Svisle</option>
-                        <option value="horizontal">Vodorovně</option>
-                    </select>
-                </div>
-
-                <!-- Materials & Room Dims -->
-                <div class="grid grid-cols-2 gap-2 bg-gray-50 p-2 rounded border border-gray-100">
-                    <div>
-                        <label class="block text-[9px] uppercase text-gray-500 mb-1">P. Deska (mm)</label>
-                        <input id="wtThickness" type="number" value="38" class="w-full border rounded px-1 text-xs"
-                            oninput="draw()">
+                    <div class="relative">
+                        <label class="absolute -top-1.5 left-2 bg-white px-1 text-[9px] text-gray-400">Název</label>
+                        <input id="projName" type="text"
+                            class="text-xs border border-gray-300 rounded px-2 py-1.5 w-full focus:border-blue-500 outline-none"
+                            value="Moje Kuchyně">
                     </div>
-                    <div>
-                        <label class="block text-[9px] uppercase text-gray-500 mb-1">Korpus (mm)</label>
-                        <input id="matThickness" type="number" value="18" class="w-full border rounded px-1 text-xs"
-                            oninput="draw()">
-                    </div>
-                    <div class="col-span-2 mt-1">
-                        <label class="block text-[9px] uppercase text-gray-500 mb-1">Dekor Desky</label>
-                        <select id="wtDecorSelect" onchange="draw(); update3DMaterial()"
-                            class="w-full border rounded p-1 text-xs">
-                            <option value="wood_oak">Dub / Dřevo</option>
-                            <option value="wood_dark">Ořech / Tmavé Dřevo</option>
-                            <option value="concrete">Beton</option>
-                            <option value="stone_black">Černý Kámen</option>
-                            <option value="marble">Mramor</option>
-                            <option value="white_matte">Bílá</option>
-                        </select>
+                    <div class="relative">
+                        <label class="absolute -top-1.5 left-2 bg-white px-1 text-[9px] text-gray-400">Autor</label>
+                        <input id="projAuthor" type="text"
+                            class="text-xs border border-gray-300 rounded px-2 py-1.5 w-full focus:border-blue-500 outline-none"
+                            value="Jan Novák">
                     </div>
                 </div>
+                <script>
 
-                <div id="totalStats" class="text-xs font-mono text-center text-blue-600 font-bold pt-2 border-t"></div>
+    function checkMyPassword() {
 
-                <!-- Back Wall Config -->
-                <div class="mt-2 pt-2 border-t border-gray-100 bg-blue-50 p-2 rounded">
-                    <label class="block text-[10px] uppercase text-blue-800 font-bold mb-1">Zadní Stěna (3D)</label>
-                    <div class="grid grid-cols-2 gap-2 mb-2">
+        const h = "kuchyne2024"; // Tady si dej své heslo
+
+        const input = document.getElementById('passInput').value;
+
+        if (input === h) {
+
+            document.getElementById('loginOverlay').style.display = 'none';
+
+        } else {
+
+            document.getElementById('errorMsg').classList.remove('hidden');
+
+        }
+
+    }
+
+    // Umožní potvrdit heslo klávesou Enter
+
+    document.getElementById('passInput').addEventListener('keypress', function (e) {
+
+        if (e.key === 'Enter') checkMyPassword();
+
+    });
+
+</script>
+
+                <!-- 2. GLOBÁLNÍ NASTAVENÍ (Collapsible Master) -->
+                <details open class="group bg-white border border-gray-200 rounded overflow-hidden shadow-sm">
+                    <summary
+                        class="flex items-center justify-between p-3 cursor-pointer bg-slate-50 hover:bg-slate-100 select-none border-b border-gray-100">
+                        <span class="text-xs font-bold uppercase text-gray-700 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Globální Nastavení
+                        </span>
+                        <svg class="w-4 h-4 text-gray-400 transition-transform group-open:rotate-180"
+                            viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                clip-rule="evenodd" />
+                        </svg>
+                    </summary>
+
+                    <div class="p-3 space-y-4 bg-white text-xs">
+                        <!-- Materials & Design -->
                         <div>
-                            <label class="block text-[9px] text-gray-500">Šířka (mm)</label>
-                            <input id="wallW" type="number" value="5000" oninput="update3DWall()"
-                                class="w-full border rounded px-1 text-xs">
+                            <h3
+                                class="text-[10px] uppercase font-bold text-blue-600 mb-2 border-b border-gray-100 pb-1">
+                                Materiály & Design</h3>
+                            <div class="space-y-2">
+                                <div>
+                                    <label class="block text-[9px] text-gray-400 mb-0.5">Dekor Dvířek</label>
+                                    <select id="decorSelect" onchange="draw(); update3DMaterial();"
+                                        class="w-full border rounded px-2 py-1.5 bg-gray-50">
+                                        <optgroup label="Základní Barvy">
+                                            <option value="white_matte" selected>Bílá Matná</option>
+                                            <option value="white_gloss">Bílá Vysoký Lesk</option>
+                                            <option value="grey_matte">Světle Šedá</option>
+                                            <option value="black_matte">Černá Hluboký Mat</option>
+                                            <option value="cashmere">Kašmír (Béžová)</option>
+                                            <option value="navy">Námořnická Modrá</option>
+                                            <option value="forest">Lesní Zelená</option>
+                                        </optgroup>
+                                        <optgroup label="Dřevodekory">
+                                            <option value="oak">Dub Přírodní</option>
+                                            <option value="oak_dark">Dub Tmavý / Tabák</option>
+                                            <option value="walnut">Ořech Americký</option>
+                                            <option value="pine">Borovice Světlá</option>
+                                        </optgroup>
+                                        <optgroup label="Kámen">
+                                            <option value="concrete">Beton Tmavý</option>
+                                            <option value="concrete_light">Beton Světlý</option>
+                                            <option value="marble">Mramor Carrara</option>
+                                            <option value="stone_black">Břidlice Černá</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] text-gray-400 mb-0.5">Pracovní Deska</label>
+                                    <select id="wtDecorSelect" onchange="draw(); update3DMaterial();"
+                                        class="w-full border rounded px-2 py-1.5 bg-gray-50">
+                                        <option value="wood_oak">Dub / Dřevo</option>
+                                        <option value="wood_dark">Ořech / Tmavé Dřevo</option>
+                                        <option value="concrete">Beton</option>
+                                        <option value="stone_black">Černý Kámen</option>
+                                        <option value="marble">Mramor</option>
+                                        <option value="white_matte">Bílá</option>
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] text-gray-400">Tl. Desky</label>
+                                        <input id="wtThickness" type="number" value="38" oninput="draw()"
+                                            class="w-full border rounded px-2 py-1 bg-gray-50">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] text-gray-400">Tl. Korpusu</label>
+                                        <input id="matThickness" type="number" value="18" oninput="draw()"
+                                            class="w-full border rounded px-2 py-1 bg-gray-50">
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[9px] text-gray-400 mb-0.5">Úchytky</label>
+                                        <select id="handleStyle" onchange="draw(); update3DMaterial();"
+                                            class="w-full border rounded px-2 py-1.5 bg-gray-50">
+                                            <option value="modern_chrome">Chrom Moderní</option>
+                                            <option value="black_matte">Černé Matné</option>
+                                            <option value="gold_brass">Zlatá Mosaz</option>
+                                            <option value="none">Bezúchytkové (Push)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[9px] text-gray-400 mb-0.5">Orientace</label>
+                                        <select id="handleOrientationGlobal" onchange="draw(); update3DMaterial();"
+                                            class="w-full border rounded px-2 py-1.5 bg-gray-50">
+                                            <option value="vertical">Svisle</option>
+                                            <option value="horizontal">Vodorovně</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-[9px] text-gray-500">Výška (mm)</label>
-                            <input id="wallH" type="number" value="3000" oninput="update3DWall()"
-                                class="w-full border rounded px-1 text-xs">
+
+                        <!-- Room & Dimensions -->
+                        <div class="pt-3 border-t border-dashed border-gray-200">
+                            <h3 class="text-[10px] uppercase font-bold text-blue-600 mb-2">Místnost & Rozměry</h3>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[9px] text-gray-400">Šířka stěny (cm)</label>
+                                    <input id="wallWidth" type="number" value="300" oninput="draw(); update3DWall()"
+                                        class="w-full border rounded px-2 py-1 bg-gray-50">
+                                </div>
+                                <div>
+                                    <label class="block text-[9px] text-gray-400">Výška stropu (cm)</label>
+                                    <input id="ceilHeight" type="number" value="260" oninput="draw(); update3DWall()"
+                                        class="w-full border rounded px-2 py-1 bg-gray-50">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-[9px] text-gray-400">Barva stěny</label>
+                                    <input id="wallColor" type="color" value="#f3f4f6" oninput="draw(); update3DWall()"
+                                        class="w-full h-8 p-0 border-0 rounded cursor-pointer">
+                                </div>
+                            </div>
                         </div>
+
                     </div>
-                    <div>
-                        <label class="block text-[9px] text-gray-500">Barva Malby</label>
-                        <select id="wallColor" onchange="update3DWall()" class="w-full border rounded px-1 text-xs">
-                            <option value="#ffffff">Bílá</option>
-                            <option value="#f3f4f6" selected>Světle Šedá</option>
-                            <option value="#e5e7eb">Šedá</option>
-                            <option value="#fef3c7">Krémová</option>
-                            <option value="#bfdbfe">Modrá Pastelová</option>
-                            <option value="#bbf7d0">Zelená Pastelová</option>
-                            <option value="#fbcfe8">Růžová Pastelová</option>
-                        </select>
-                    </div>
-                </div>
+                </details>
             </div>
+
+
+            <div id="totalStats" class="text-xs font-mono text-center text-blue-600 font-bold pt-2 border-t"></div>
         </div>
 
         <!-- MODULE LIST (Scrollable) -->
@@ -385,7 +422,13 @@
             if (idx > -1) {
                 if (key === 'hinge') modules[idx][key] = value;
                 else modules[idx][key] = parseFloat(value);
-                if (currentView === '3d') draw3D(); // Redraw 3D if active
+
+                // Re-render UI list if structural property changes
+                if (key === 'hinge' || key === 'doorCount') {
+                    renderModuleList();
+                }
+
+                if (currentView === '3d') draw3D();
                 else draw();
                 updateTotalStats();
             }
@@ -592,9 +635,19 @@
 
                 // Handle Orientation (REMOVED - now Global)
 
-                // Split (Always show if hinge is not none)
+                // Split (Always show
                 if (m.hinge !== 'none') {
-                    doorSettings += `<div><label class="block text-gray-500 text-[10px] uppercase">Dělení dvířek (mm)</label><input type="number" value="${m.doorSplit || 0}" oninput="updateModule(${m.id}, 'doorSplit', this.value)" class="w-full border border-gray-300 rounded px-1 py-1 text-xs"></div>`;
+                    // Door Count
+                    doorSettings += `<div class="col-span-2 grid grid-cols-2 gap-2"><div><label class="block text-gray-500 text-[10px] uppercase">Počet dvířek</label><select onchange="updateModule(${m.id}, 'doorCount', parseInt(this.value))" class="w-full border border-gray-300 rounded px-1 py-1 text-xs font-bold bg-gray-50"><option value="1" ${(!m.doorCount || m.doorCount == 1) ? 'selected' : ''}>1 (Plné)</option><option value="2" ${m.doorCount == 2 ? 'selected' : ''}>2 (Dělené)</option><option value="3" ${m.doorCount == 3 ? 'selected' : ''}>3 (3 Segmenty)</option></select></div>`;
+
+                    // Splits
+                    if (m.doorCount >= 2) {
+                        doorSettings += `<div><label class="block text-gray-500 text-[10px] uppercase">Výška 1. (Dole)</label><input type="number" value="${m.doorSplit || 0}" oninput="updateModule(${m.id}, 'doorSplit', this.value)" class="w-full border border-gray-300 rounded px-1 py-1 text-xs"></div>`;
+                    }
+                    if (m.doorCount >= 3) {
+                        doorSettings += `<div><label class="block text-gray-500 text-[10px] uppercase">Výška 2. (Střed)</label><input type="number" value="${m.doorSplit2 || 0}" oninput="updateModule(${m.id}, 'doorSplit2', this.value)" class="w-full border border-gray-300 rounded px-1 py-1 text-xs"></div>`;
+                    }
+                    doorSettings += `</div>`; // Close grid
                 }
 
                 doorSettings += `</div>`;
@@ -1042,10 +1095,22 @@
 
                 if (showDoors) {
                     let segments = [];
-                    // Universal Split Logic (Height > 0)
-                    if (item.doorSplit > 0 && item.doorSplit < item.height) {
-                        segments.push({ min: 0, max: item.doorSplit }); segments.push({ min: item.doorSplit, max: item.height });
-                    } else { segments.push({ min: 0, max: item.height }); }
+                    // Universal Multi-Split Logic
+                    const count = item.doorCount || 1;
+                    const dS1 = parseFloat(item.doorSplit);
+                    const dS2 = parseFloat(item.doorSplit2);
+
+                    if (count >= 2 && dS1 > 0) {
+                        segments.push({ min: 0, max: dS1 });
+                        if (count >= 3 && dS2 > dS1) {
+                            segments.push({ min: dS1, max: dS2 });
+                            segments.push({ min: dS2, max: item.height });
+                        } else {
+                            segments.push({ min: dS1, max: item.height });
+                        }
+                    } else {
+                        segments.push({ min: 0, max: item.height });
+                    }
                     segments.forEach(seg => {
                         const segMid = (seg.min + seg.max) / 2;
                         const isBlocked = occupiedRegions.some(reg => segMid > reg.min && segMid < reg.max);
@@ -1487,9 +1552,10 @@
 
             // Walls & Floor
             // Back Wall
-            const wallW = parseFloat(document.getElementById('wallW')?.value || document.getElementById('wallWidth')?.value) || 5000;
-            const wallH = parseFloat(document.getElementById('wallH')?.value || document.getElementById('wallHeight')?.value) || 3000;
-            const wallColor = document.getElementById('wallColor')?.value || "#f3f4f6";
+            // Back Wall
+            const wallW = parseFloat(document.getElementById('wallWidth').value) || 5000;
+            const wallH = parseFloat(document.getElementById('ceilHeight').value) || 2600;
+            const wallColor = document.getElementById('wallColor').value || "#f3f4f6";
 
             // Calculate kitchen TRUE center
             const prepared = getPreparedModules();
@@ -1552,7 +1618,39 @@
         }
 
         function update3DMaterial() {
-            if (currentView === '3d') draw3D();
+            if (currentView === '3d') {
+                draw3D();
+                // Also update wall color
+                const backWall = scene.getObjectByName('backWall');
+                if (backWall) backWall.material.color.set(document.getElementById('wallColor').value);
+            }
+        }
+
+        function update3DWall() {
+            if (currentView !== '3d') return;
+            const wallW = parseFloat(document.getElementById('wallWidth').value) || 5000;
+            const wallH = parseFloat(document.getElementById('ceilHeight').value) || 2600;
+            const wallColor = document.getElementById('wallColor').value || "#f3f4f6";
+
+            const backWall = scene.getObjectByName('backWall');
+            if (backWall) {
+                backWall.geometry.dispose();
+                backWall.geometry = new THREE.PlaneGeometry(wallW, wallH);
+                backWall.material.color.set(wallColor);
+
+                // Recenter
+                // Need prepared modules range? Or just center at 1000?
+                // Let's use simple centering for now or keep existing logic.
+                // Ideally we call init3D() partial, but resizing geometry is enough.
+                // Center X: We need the range. simple fix:
+                backWall.position.set(wallW / 2, wallH / 2, -20);
+                // If we want it centered on modules, we need that logic. 
+                // For now, aligning left edge to 0 is safer if wallW represents room width starting from Left.
+                // Previous logic was (minX+maxX)/2. 
+                // Let's just redraw 3D entirely to be safe:
+                init3D();
+                draw3D();
+            }
         }
 
         function draw3D() {
@@ -1624,10 +1722,10 @@
             const plinthMat = new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.5 });
             const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.0, metalness: 0.9, transmission: 0.1, transparent: true, opacity: 0.7 });
             const steelMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.3, metalness: 0.8 });
-            const handleColorType = document.getElementById('handleSelect').value;
+            const handleColorType = document.getElementById('handleStyle').value;
             let handleColorHex = 0xcccccc;
-            if (handleColorType === 'black') handleColorHex = 0x111111;
-            if (handleColorType === 'gold') handleColorHex = 0xd4af37;
+            if (handleColorType === 'black_matte') handleColorHex = 0x111111;
+            if (handleColorType === 'gold_brass') handleColorHex = 0xd4af37;
             const handleMat = new THREE.MeshStandardMaterial({ color: handleColorHex, roughness: 0.3, metalness: 0.8 });
             const socketMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
 
@@ -1725,35 +1823,76 @@
                 const drawerUnit = item.appliances.find(a => a.type === 'drawer_unit');
 
                 if (drawerUnit) {
-                    // --- DRAWERS ---
+                    // --- DRAWERS & MIXED FRONTS ---
+                    // Allow partial drawers (e.g. bottom 720mm) and door above
+                    const dSetH = drawerUnit.h ? parseFloat(drawerUnit.h) : h; // Height of drawer set
                     const count = drawerUnit.count || 3;
-                    const drawerH = (h - gap * (count - 1)) / count;
+                    const drawerH = (dSetH - gap * (count - 1)) / count;
 
+                    // 1. Drawers
                     for (let i = 0; i < count; i++) {
                         const yPos = i * (drawerH + gap);
                         const frontGeo = new THREE.BoxGeometry(w - 2, drawerH, frontThick);
-                        const frontMesh = new THREE.Mesh(frontGeo, cabinetMat); // Use Decor
+                        const frontMesh = new THREE.Mesh(frontGeo, cabinetMat);
                         frontMesh.position.set(w / 2, yPos + drawerH / 2, frontThick / 2);
                         frontMesh.castShadow = true; frontMesh.receiveShadow = true;
                         frontsGroup.add(frontMesh);
 
-                        // Handle (Centered)
-                        const hH = 120; // Handle width/length
-                        const handleGrp = new THREE.Group();
-                        // Bar
-                        const bar = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, hH, 8), handleMat);
-                        bar.rotation.z = Math.PI / 2; // Horizontal for drawers
-                        handleGrp.add(bar);
-                        // Posts
-                        const post1 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
-                        post1.rotation.x = Math.PI / 2; post1.position.x = -hH / 2 + 10; post1.position.z = -12;
-                        handleGrp.add(post1);
-                        const post2 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
-                        post2.rotation.x = Math.PI / 2; post2.position.x = hH / 2 - 10; post2.position.z = -12;
-                        handleGrp.add(post2);
+                        // Handle (Horizontal for drawers)
+                        if (handleColorType !== 'none') {
+                            const hH = 120; // Handle width/length
+                            const handleGrp = new THREE.Group();
+                            const bar = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, hH, 8), handleMat);
+                            bar.rotation.z = Math.PI / 2;
+                            handleGrp.add(bar);
+                            const post1 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
+                            post1.rotation.x = Math.PI / 2; post1.position.x = -hH / 2 + 10; post1.position.z = -12;
+                            handleGrp.add(post1);
+                            const post2 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
+                            post2.rotation.x = Math.PI / 2; post2.position.x = hH / 2 - 10; post2.position.z = -12;
+                            handleGrp.add(post2);
 
-                        handleGrp.position.set(w / 2, yPos + drawerH * 0.7, frontThick + 25);
-                        frontsGroup.add(handleGrp);
+                            handleGrp.position.set(w / 2, yPos + drawerH * 0.7, frontThick + 25);
+                            frontsGroup.add(handleGrp);
+                        }
+                    }
+
+                    // 2. Remaining Door (if any space left)
+                    if (dSetH < (h - 50) && item.hinge !== 'none') {
+                        const doorH = h - dSetH - gap;
+                        const doorY = dSetH + gap;
+
+                        const doorGeo = new THREE.BoxGeometry(w - 2, doorH, frontThick);
+                        const doorMesh = new THREE.Mesh(doorGeo, cabinetMat);
+                        doorMesh.position.set(w / 2, doorY + doorH / 2, frontThick / 2);
+                        doorMesh.castShadow = true; doorMesh.receiveShadow = true;
+                        frontsGroup.add(doorMesh);
+
+                        // Door Handle
+                        if (handleColorType !== 'none') {
+                            const hGrp = new THREE.Group();
+                            const bar = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 120, 8), handleMat);
+                            hGrp.add(bar);
+                            const p1 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
+                            p1.rotation.x = Math.PI / 2; p1.position.y = 50; p1.position.z = -12;
+                            hGrp.add(p1);
+                            const p2 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
+                            p2.rotation.x = Math.PI / 2; p2.position.y = -50; p2.position.z = -12;
+                            hGrp.add(p2);
+
+                            // Position Handle
+                            const globalOrientation = document.getElementById('handleOrientationGlobal') ? document.getElementById('handleOrientationGlobal').value : 'vertical';
+                            if (globalOrientation === 'horizontal') hGrp.rotation.z = Math.PI / 2;
+
+                            const pad = 80;
+                            let hx, hy;
+                            hy = doorY + 80; // Bottom of door usually
+                            const hPad = globalOrientation === 'horizontal' ? 80 : 40;
+                            hx = (item.hinge === 'left') ? w - hPad : hPad;
+
+                            hGrp.position.set(hx, hy, frontThick + 25);
+                            frontsGroup.add(hGrp);
+                        }
                     }
 
                 } else if (item.hinge !== 'none') {
@@ -1761,10 +1900,19 @@
                     // Support Split Doors (Tall Cabinet)
                     // Support Split Doors (Universal)
                     let segments = [];
-                    // Remove "item.type === 'tall'" check to allow splits on any cabinet
-                    if (item.doorSplit > 0 && item.doorSplit < item.height) {
-                        segments.push({ min: 0, max: item.doorSplit });
-                        segments.push({ min: item.doorSplit, max: item.height });
+                    // Universal Multi-Split Logic
+                    const dCount = item.doorCount || 1;
+                    const d1 = parseFloat(item.doorSplit);
+                    const d2 = parseFloat(item.doorSplit2);
+
+                    if (dCount >= 2 && d1 > 0) {
+                        segments.push({ min: 0, max: d1 });
+                        if (dCount >= 3 && d2 > d1) {
+                            segments.push({ min: d1, max: d2 });
+                            segments.push({ min: d2, max: item.height });
+                        } else {
+                            segments.push({ min: d1, max: item.height });
+                        }
                     } else {
                         segments.push({ min: 0, max: item.height });
                     }
@@ -1782,44 +1930,60 @@
                         frontsGroup.add(pm);
 
                         // Handle
-                        const hH = 120;
-                        const handleGrp = new THREE.Group();
-                        const bar = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, hH, 8), handleMat);
-                        handleGrp.add(bar);
-                        const post1 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
-                        post1.rotation.x = Math.PI / 2; post1.position.y = hH / 2 - 10; post1.position.z = -12;
-                        handleGrp.add(post1);
-                        const post2 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
-                        post2.rotation.x = Math.PI / 2; post2.position.y = -hH / 2 + 10; post2.position.z = -12;
-                        handleGrp.add(post2);
+                        if (handleColorType !== 'none') {
+                            const hH = 120;
+                            const handleGrp = new THREE.Group();
+                            const bar = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, hH, 8), handleMat);
+                            handleGrp.add(bar);
+                            const post1 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
+                            post1.rotation.x = Math.PI / 2; post1.position.y = hH / 2 - 10; post1.position.z = -12;
+                            handleGrp.add(post1);
+                            const post2 = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 25, 8), handleMat);
+                            post2.rotation.x = Math.PI / 2; post2.position.y = -hH / 2 + 10; post2.position.z = -12;
+                            handleGrp.add(post2);
 
-                        let hx, hy;
-                        const pad = 80;
-                        // Use Global Orientation
-                        const globalOrientation = document.getElementById('handleOrientationGlobal') ? document.getElementById('handleOrientationGlobal').value : 'vertical';
-                        const isHoriz = globalOrientation === 'horizontal';
-                        if (isHoriz) handleGrp.rotation.z = Math.PI / 2;
+                            let hx, hy;
+                            const pad = 80;
+                            // Use Global Orientation
+                            const globalOrientation = document.getElementById('handleOrientationGlobal') ? document.getElementById('handleOrientationGlobal').value : 'vertical';
+                            const isHoriz = globalOrientation === 'horizontal';
+                            if (isHoriz) handleGrp.rotation.z = Math.PI / 2;
 
-                        // Vertical Handle Position
-                        if (item.type === 'base') {
-                            hy = visY + visH - pad;
-                        } else if (item.type === 'wall') {
-                            hy = visY + pad;
-                        } else {
-                            // Split Logic
-                            if (seg.min === 0) {
+                            // Vertical Handle Position
+                            if (item.type === 'base') {
                                 hy = visY + visH - pad;
-                            } else {
+                            } else if (item.type === 'wall') {
                                 hy = visY + pad;
+                            } else {
+                                // Tall / Other - Smart Ergonomics
+                                if (seg.min === 0) {
+                                    // Bottom Door
+                                    if (visH > 1600 && item.elevation < 500) {
+                                        // VERY Tall Single Door (e.g. 2m high on floor)
+                                        // Handle should be at approx 1050mm from floor.
+                                        // Since modGroup can have elevation or not, assume item.elevation is base Z.
+                                        // visY is usually 0 relative to bottom of module.
+                                        // Target Handle Y from Module Bottom: 1050 - item.elevation
+                                        const targetY = 1050 - item.elevation;
+                                        // Clamp logic to ensure it's inside door
+                                        hy = Math.max(visY + 100, Math.min(visY + visH - 100, targetY));
+                                    } else {
+                                        // Normal Bottom Door -> Top Handle
+                                        hy = visY + visH - pad;
+                                    }
+                                } else {
+                                    // Upper Door -> Bottom Handle
+                                    hy = visY + pad;
+                                }
                             }
+
+                            // Horizontal Position
+                            const hPad = isHoriz ? 80 : 40;
+                            hx = (item.hinge === 'left') ? w - hPad : hPad;
+
+                            handleGrp.position.set(hx, hy, frontThick + 25);
+                            frontsGroup.add(handleGrp);
                         }
-
-                        // Horizontal Position
-                        const hPad = isHoriz ? 80 : 40;
-                        hx = (item.hinge === 'left') ? w - hPad : hPad;
-
-                        handleGrp.position.set(hx, hy, frontThick + 25);
-                        frontsGroup.add(handleGrp);
                     });
                 }
 
@@ -1891,42 +2055,64 @@
                 item.appliances.forEach(app => {
                     const isSurface = APPLIANCE_TYPES[app.type].isSurface;
                     const isSocket = app.type === 'socket';
+                    const isHood = app.type === 'hood';
 
-                    if (isSocket) {
+                    if (isHood) {
+                        // Render Hood in 3D
+                        const hoodH = app.h || 400;
+                        const hoodY = item.elevation + app.pos;
+                        // Visible part (assuming built-in slide out or canopy)
+                        // Metal color
+                        const metal = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.4, metalness: 0.6 });
+
+                        // 1. Bottom Plate (Visible Filter) - Use LOCAL coordinates relative to modGroup
+                        const plate = new THREE.Mesh(new THREE.BoxGeometry(w - 4, 40, d - 4), metal);
+                        plate.position.set(w / 2, hoodY + 20, (d - 4) / 2);
+                        modGroup.add(plate);
+
+                        // 2. Motor Box (Inside cabinet)
+                        const motor = new THREE.Mesh(new THREE.BoxGeometry(w - 80, hoodH - 40, d - 80), new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
+                        motor.position.set(w / 2, hoodY + 40 + (hoodH - 40) / 2, d / 2);
+                        modGroup.add(motor);
+                    }
+                    else if (isSocket) {
+                        // Sockets use LOCAL coordinates
                         const count = app.count || 1;
-                        let startSockX = (app.offX !== undefined) ? item.x + app.offX : item.x + (w - count * 80) / 2;
-                        const sY = item.elevation + app.pos + 40; // center
+                        // No item.x here! modGroup is already at item.x
 
                         for (let i = 0; i < count; i++) {
+                            const sY = item.elevation + app.pos + 40; // center
+                            const sX = (app.offX !== undefined ? app.offX : (w - count * 80) / 2) + i * 80 + 40;
+
                             // Socket Frame - High contrast
                             const sGeo = new THREE.BoxGeometry(84, 84, 6);
                             // Border black
                             const sMeshBorder = new THREE.Mesh(sGeo, new THREE.MeshBasicMaterial({ color: 0x000000 }));
-                            sMeshBorder.position.set((app.offX !== undefined ? app.offX : (w - count * 80) / 2) + i * 80 + 40, sY, -16); // On wall
+                            sMeshBorder.position.set(sX, sY, -16); // On wall
                             modGroup.add(sMeshBorder);
 
                             // Inner White
                             const sGeoIn = new THREE.BoxGeometry(76, 76, 8);
                             const sMesh = new THREE.Mesh(sGeoIn, socketMat);
-                            sMesh.position.set((app.offX !== undefined ? app.offX : (w - count * 80) / 2) + i * 80 + 40, sY, -15);
+                            sMesh.position.set(sX, sY, -15);
                             modGroup.add(sMesh);
 
                             // Pin holes
                             const hGeo = new THREE.CylinderGeometry(3.5, 3.5, 5, 16);
                             hGeo.rotateX(Math.PI / 2);
                             const h1 = new THREE.Mesh(hGeo, new THREE.MeshBasicMaterial({ color: 0x000000 }));
-                            h1.position.set((app.offX !== undefined ? app.offX : (w - count * 80) / 2) + i * 80 + 25, sY, -10);
+                            h1.position.set(sX - 15, sY, -10);
                             modGroup.add(h1);
                             const h2 = new THREE.Mesh(hGeo, new THREE.MeshBasicMaterial({ color: 0x000000 }));
-                            h2.position.set((app.offX !== undefined ? app.offX : (w - count * 80) / 2) + i * 80 + 55, sY, -10);
+                            h2.position.set(sX + 15, sY, -10);
                             modGroup.add(h2);
                             // Pin
                             const pin = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 8, 8), new THREE.MeshStandardMaterial({ color: 0x888888 }));
                             pin.rotateX(Math.PI / 2);
-                            pin.position.set((app.offX !== undefined ? app.offX : (w - count * 80) / 2) + i * 80 + 40, sY - 15, -10);
+                            pin.position.set(sX, sY - 15, -10);
                             modGroup.add(pin);
                         }
-                        return;
+                        return; // Done
                     }
 
                     // ... Appliances logic ...
@@ -2065,7 +2251,4 @@
     </script>
 </body>
 
-
 </html>
-
-
