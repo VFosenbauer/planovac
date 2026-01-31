@@ -51,6 +51,14 @@
 
 <body class="bg-gray-100 text-gray-800 h-screen flex flex-col md:flex-row overflow-hidden">
 <script>
+    <div id="loginOverlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#f3f4f6; z-index:10000; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:sans-serif;">
+    <div style="background:white; padding: 2.5rem; border-radius: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); text-align:center; border: 1px solid #e5e7eb;">
+        <h2 style="margin-bottom: 1.5rem; font-weight: bold; color: #1e3a8a; font-size: 1.5rem;">Truhlářský Editor - Přihlášení</h2>
+        <input type="password" id="passInput" placeholder="Zadejte heslo" style="border: 1px solid #d1d5db; padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem; width: 280px; display:block; outline-color: #2563eb;">
+        <button onclick="checkMyPassword()" style="background:#2563eb; color:white; padding: 0.75rem 2rem; border-radius: 0.5rem; border:none; cursor:pointer; font-weight:bold; width: 100%; transition: background 0.2s;" onmouseover="this.style.background='#1d4ed8'" onmouseout="this.style.background='#2563eb'">Odemknout</button>
+        <p id="errorMsg" style="color:red; margin-top: 1rem; display:none; font-size: 0.875rem; font-weight: 600;">⚠️ Špatné heslo, zkuste to znovu!</p>
+    </div>
+</div>
     function checkMyPassword() {
         const h = "kuchyne2024"; // Tvoje heslo
         const input = document.getElementById('passInput').value;
@@ -2242,5 +2250,6 @@
 </body>
 
 </html>
+
 
 
