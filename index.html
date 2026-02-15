@@ -1441,7 +1441,6 @@
             const showDims = document.getElementById('showDims').checked;
 
             // Draw Wall Title
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear
             ctx.fillStyle = "#000"; ctx.font = "bold 20px 'Roboto Mono'"; ctx.textAlign = "left";
             ctx.fillText("NÁRYS", 20, 40);
 
@@ -1747,36 +1746,37 @@
         }
 
         function update3DWall() {
-            if (currentView === '3d' && scene) {
-                const wall = scene.getObjectByName('backWall');
-                if (wall) {
-                    const w = parseFloat(document.getElementById('wallW')?.value || document.getElementById('wallWidth')?.value) || 5000;
-                    const h = parseFloat(document.getElementById('wallH')?.value || document.getElementById('wallHeight')?.value) || 3000;
-                    const color = document.getElementById('wallColor').value;
+            if (!scene) return;
+            const wall = scene.getObjectByName('backWall');
+            if (!wall) return;
 
-                    // Rebuild geometry
-                    wall.geometry.dispose();
-                    wall.geometry = new THREE.PlaneGeometry(w, h);
-                    // Update material to Basic to match init3D
-                    wall.material.dispose();
-                    wall.material = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide });
+            const prepared = getPreparedModules();
+            let maxXOverall = 0;
+            prepared.forEach(m => { if (m.x + m.width > maxXOverall) maxXOverall = m.x + m.width; });
 
-                    // Helper: Recalculate TRUE center
-                    const prepared = getPreparedModules();
-                    let minX = Infinity, maxX = -Infinity;
-                    if (prepared.length > 0) {
-                        prepared.forEach(m => {
-                            if (m.x < minX) minX = m.x;
-                            if (m.x + m.width > maxX) maxX = m.x + m.width;
-                        });
-                    } else {
-                        minX = 0; maxX = 2000;
-                    }
-                    const centerX = (minX + maxX) / 2;
+            const inputWidth = parseFloat(document.getElementById('wallWidth').value) || 3000;
+            const w = Math.max(inputWidth, maxXOverall + 200);
+            const h = parseFloat(document.getElementById('ceilHeight').value) || 2600;
+            const color = document.getElementById('wallColor').value;
+            const depth = parseFloat(document.getElementById('wallDepth').value) || 150;
 
-                    wall.position.set(centerX, h / 2, -20);
-                }
-            }
+            wall.geometry.dispose();
+            wall.geometry = new THREE.BoxGeometry(w, h, depth);
+
+            wall.material.dispose();
+            wall.material = new THREE.MeshStandardMaterial({ color: color, roughness: 0.8 });
+
+            let minX = Infinity, maxX = -Infinity;
+            if (prepared.length > 0) {
+                prepared.forEach(m => {
+                    if (m.x < minX) minX = m.x;
+                    if (m.x + m.width > maxX) maxX = m.x + m.width;
+                });
+            } else { minX = 0; maxX = 2000; }
+            const centerX = (minX + maxX) / 2;
+
+            wall.receiveShadow = true;
+            wall.position.set(centerX, h / 2, -depth / 2);
         }
 
         // Shared helpers
@@ -2150,9 +2150,9 @@
 
             // Walls & Floor
             // Back Wall
-            // Back Wall
             const wallW = parseFloat(document.getElementById('wallWidth').value) || 5000;
             const wallH = parseFloat(document.getElementById('ceilHeight').value) || 2600;
+            const wallD = parseFloat(document.getElementById('wallDepth').value) || 150;
             const wallColor = document.getElementById('wallColor').value || "#f3f4f6";
 
             // Calculate kitchen TRUE center
@@ -2168,13 +2168,12 @@
             }
             const centerX = (minX + maxX) / 2;
 
-            const geometry = new THREE.PlaneGeometry(wallW, wallH);
-            // Use BASIC material to ensure color is exactly what user wants, unaffected by light/shadow
-            const material = new THREE.MeshBasicMaterial({ color: wallColor, side: THREE.DoubleSide });
+            const geometry = new THREE.BoxGeometry(wallW, wallH, wallD);
+            const material = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.8 });
             const backWall = new THREE.Mesh(geometry, material);
-            backWall.name = "backWall"; // ID for updates
-            backWall.position.set(centerX, wallH / 2, -20); // Centered on kitchen content
-            // backWall.receiveShadow = false; // Not needed for BasicMaterial
+            backWall.name = "backWall";
+            backWall.position.set(centerX, wallH / 2, -wallD / 2);
+            backWall.receiveShadow = true;
             scene.add(backWall);
 
             // Floor - Wood Texture
@@ -2213,33 +2212,6 @@
                 // Also update wall color
                 const backWall = scene.getObjectByName('backWall');
                 if (backWall) backWall.material.color.set(document.getElementById('wallColor').value);
-            }
-        }
-
-        function update3DWall() {
-            if (currentView !== '3d') return;
-            const wallW = parseFloat(document.getElementById('wallWidth').value) || 5000;
-            const wallH = parseFloat(document.getElementById('ceilHeight').value) || 2600;
-            const wallColor = document.getElementById('wallColor').value || "#f3f4f6";
-
-            const backWall = scene.getObjectByName('backWall');
-            if (backWall) {
-                backWall.geometry.dispose();
-                backWall.geometry = new THREE.PlaneGeometry(wallW, wallH);
-                backWall.material.color.set(wallColor);
-
-                // Recenter
-                // Need prepared modules range? Or just center at 1000?
-                // Let's use simple centering for now or keep existing logic.
-                // Ideally we call init3D() partial, but resizing geometry is enough.
-                // Center X: We need the range. simple fix:
-                backWall.position.set(wallW / 2, wallH / 2, -20);
-                // If we want it centered on modules, we need that logic. 
-                // For now, aligning left edge to 0 is safer if wallW represents room width starting from Left.
-                // Previous logic was (minX+maxX)/2. 
-                // Let's just redraw 3D entirely to be safe:
-                init3D();
-                draw3D();
             }
         }
 
