@@ -79,6 +79,43 @@
             outline: 3px solid #3b82f6;
             outline-offset: -3px;
         }
+
+        /* Custom AR Button */
+        #ar-button {
+            background-image: url(https://modelviewer.dev/assets/ic_view_in_ar_new_googblue_48dp.png);
+            background-repeat: no-repeat;
+            background-size: 20px 20px;
+            background-position: 12px 50%;
+            background-color: #fff;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            bottom: 16px;
+            padding: 0px 16px 0px 40px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            color: #4285f4;
+            height: 36px;
+            line-height: 36px;
+            border-radius: 18px;
+            border: 1px solid #DADCE0;
+            cursor: pointer;
+            z-index: 20;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #ar-button:active {
+            background-color: #E8EAED;
+        }
+
+        #ar-button:focus {
+            outline: none;
+        }
+
+        #ar-button:focus-visible {
+            outline: 1px solid #4285f4;
+        }
     </style>
 </head>
 
@@ -3409,6 +3446,15 @@
                     const viewer = document.getElementById('arViewer');
                     viewer.src = url;
 
+                    // Setup download button fallback
+                    const dlBtn = document.getElementById('arDownloadBtn');
+                    dlBtn.onclick = () => {
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `kuchyne-${new Date().getTime()}.glb`;
+                        link.click();
+                    };
+
                     document.getElementById('arLoading').classList.add('hidden');
                 }, {
                     binary: true
@@ -3493,9 +3539,20 @@
 
             <!-- Viewer -->
             <div class="flex-1 bg-gray-100 relative">
-                <model-viewer id="arViewer" ar ar-modes="webxr scene-viewer quick-look" camera-controls
-                    touch-action="pan-y" shadow-intensity="1" style="width: 100%; height: 100%;"
-                    alt="3D model kuchyně"></model-viewer>
+                <model-viewer id="arViewer" ar ar-modes="webxr scene-viewer quick-look" ar-placement="floor"
+                    ar-scale="fixed" camera-controls touch-action="pan-y" shadow-intensity="1"
+                    style="width: 100%; height: 100%;" alt="3D model kuchyně">
+
+                    <button slot="ar-button" id="ar-button">
+                        ZOBRAZIT VE VAŠEM PROSTORU
+                    </button>
+
+                    <div id="ar-prompt">
+                        <img src="https://modelviewer.dev/assets/hand.png"
+                            style="width: 30px; height: 30px; vertical-align: middle;">
+                        Pohybujte telefonem pro nalezení podlahy
+                    </div>
+                </model-viewer>
 
                 <!-- Loading Overlay -->
                 <div id="arLoading"
@@ -3522,7 +3579,16 @@
                             když je aplikace dostupná online.</p>
                     </div>
                 </div>
-                <div class="flex items-center justify-end">
+                <div class="flex items-center justify-end gap-3">
+                    <button id="arDownloadBtn"
+                        class="px-4 py-3 bg-white text-gray-700 text-xs font-black uppercase rounded-xl border border-gray-200 hover:bg-gray-50 transition-all shadow active:scale-95 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Stáhnout .GLB
+                    </button>
                     <button onclick="closeARModal()"
                         class="px-8 py-3 bg-gray-900 text-white text-xs font-black uppercase rounded-xl hover:bg-black transition-all shadow-lg active:scale-95">Hotovo,
                         zavřit</button>
