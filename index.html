@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="cs">
 
@@ -10,7 +9,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Inter:wght@400;600&display=swap');
@@ -47,6 +48,37 @@
             background: #cbd5e1;
             border-radius: 3px;
         }
+
+        /* Interactive Configurator Styles */
+        .catalog-item {
+            cursor: grab;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+        }
+
+        .catalog-item:hover {
+            transform: translateY(-2px);
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .catalog-item:active {
+            cursor: grabbing;
+        }
+
+        #floatingEditor {
+            position: absolute;
+            z-index: 100;
+            width: 350px;
+            pointer-events: auto;
+            transition: opacity 0.2s;
+        }
+
+        .highlight-2d {
+            outline: 3px solid #3b82f6;
+            outline-offset: -3px;
+        }
     </style>
 </head>
 
@@ -69,7 +101,7 @@
             <!-- REPAIRED SIDEBAR CONTENT -->
             <div class="space-y-3">
                 <!-- 1. MOJE FIRMA (Branding) -->
-                <details open class="group bg-white border border-gray-200 rounded overflow-hidden shadow-sm">
+                <details class="group bg-white border border-gray-200 rounded overflow-hidden shadow-sm">
                     <summary
                         class="flex items-center justify-between p-3 cursor-pointer bg-slate-50 hover:bg-slate-100 select-none border-b border-gray-100">
                         <span class="text-xs font-bold uppercase text-gray-700 flex items-center gap-2">
@@ -139,18 +171,12 @@
                 </div>
 
                 <!-- 2. GLOBÁLNÍ NASTAVENÍ (Collapsible Master) -->
-                <details open class="group bg-white border border-gray-200 rounded overflow-hidden shadow-sm">
+                <details class="group bg-white border border-gray-200 rounded overflow-hidden shadow-sm">
                     <summary
                         class="flex items-center justify-between p-3 cursor-pointer bg-slate-50 hover:bg-slate-100 select-none border-b border-gray-100">
                         <span class="text-xs font-bold uppercase text-gray-700 flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none"
-                                viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
-                            Globální Nastavení
+                            Materiál a Design
                         </span>
                         <svg class="w-4 h-4 text-gray-400 transition-transform group-open:rotate-180"
                             viewBox="0 0 20 20" fill="currentColor">
@@ -163,122 +189,163 @@
                     <div class="p-3 space-y-4 bg-white text-xs">
                         <!-- Materials & Design -->
                         <div>
-                            <h3
-                                class="text-[10px] uppercase font-bold text-blue-600 mb-2 border-b border-gray-100 pb-1">
-                                Materiály & Design</h3>
-                            <div class="space-y-2">
-                                <div>
-                                    <label class="block text-[9px] text-gray-400 mb-0.5">Dekor Dvířek</label>
-                                    <select id="decorSelect" onchange="draw(); update3DMaterial();"
-                                        class="w-full border rounded px-2 py-1.5 bg-gray-50">
-                                        <optgroup label="Základní Barvy">
-                                            <option value="white_matte" selected>Bílá Matná</option>
-                                            <option value="white_gloss">Bílá Vysoký Lesk</option>
-                                            <option value="grey_matte">Světle Šedá</option>
-                                            <option value="black_matte">Černá Hluboký Mat</option>
-                                            <option value="cashmere">Kašmír (Béžová)</option>
-                                            <option value="navy">Námořnická Modrá</option>
-                                            <option value="forest">Lesní Zelená</option>
-                                        </optgroup>
-                                        <optgroup label="Dřevodekory">
-                                            <option value="oak">Dub Přírodní</option>
-                                            <option value="oak_dark">Dub Tmavý / Tabák</option>
-                                            <option value="walnut">Ořech Americký</option>
-                                            <option value="pine">Borovice Světlá</option>
-                                        </optgroup>
-                                        <optgroup label="Kámen">
-                                            <option value="concrete">Beton Tmavý</option>
-                                            <option value="concrete_light">Beton Světlý</option>
-                                            <option value="marble">Mramor Carrara</option>
-                                            <option value="stone_black">Břidlice Černá</option>
-                                        </optgroup>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-[9px] text-gray-400 mb-0.5">Pracovní Deska</label>
-                                    <select id="wtDecorSelect" onchange="draw(); update3DMaterial();"
-                                        class="w-full border rounded px-2 py-1.5 bg-gray-50">
-                                        <option value="wood_oak">Dub / Dřevo</option>
-                                        <option value="wood_dark">Ořech / Tmavé Dřevo</option>
-                                        <option value="concrete">Beton</option>
-                                        <option value="stone_black">Černý Kámen</option>
-                                        <option value="marble">Mramor</option>
-                                        <option value="white_matte">Bílá</option>
-                                    </select>
-                                </div>
-                                <div class="grid grid-cols-2 gap-2">
+                            <!-- Materials & Design Content -->
+                            <div>
+                                <div class="space-y-2">
                                     <div>
-                                        <label class="block text-[9px] text-gray-400">Tl. Desky</label>
-                                        <input id="wtThickness" type="number" value="38" oninput="draw()"
-                                            class="w-full border rounded px-2 py-1 bg-gray-50">
-                                    </div>
-                                    <div>
-                                        <label class="block text-[9px] text-gray-400">Tl. Korpusu</label>
-                                        <input id="matThickness" type="number" value="18" oninput="draw()"
-                                            class="w-full border rounded px-2 py-1 bg-gray-50">
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label class="block text-[9px] text-gray-400 mb-0.5">Úchytky</label>
-                                        <select id="handleStyle" onchange="draw(); update3DMaterial();"
+                                        <label class="block text-[9px] text-gray-400 mb-0.5">Dekor Dvířek</label>
+                                        <select id="decorSelect" onchange="draw(); update3DMaterial();"
                                             class="w-full border rounded px-2 py-1.5 bg-gray-50">
-                                            <option value="modern_chrome">Chrom Moderní</option>
-                                            <option value="black_matte">Černé Matné</option>
-                                            <option value="gold_brass">Zlatá Mosaz</option>
-                                            <option value="none">Bezúchytkové (Push)</option>
+                                            <optgroup label="Základní Barvy">
+                                                <option value="white_matte" selected>Bílá Matná</option>
+                                                <option value="white_gloss">Bílá Vysoký Lesk</option>
+                                                <option value="grey_matte">Světle Šedá</option>
+                                                <option value="black_matte">Černá Hluboký Mat</option>
+                                                <option value="cashmere">Kašmír (Béžová)</option>
+                                                <option value="navy">Námořnická Modrá</option>
+                                                <option value="forest">Lesní Zelená</option>
+                                            </optgroup>
+                                            <optgroup label="Dřevodekory">
+                                                <option value="oak">Dub Přírodní</option>
+                                                <option value="oak_dark">Dub Tmavý / Tabák</option>
+                                                <option value="walnut">Ořech Americký</option>
+                                                <option value="pine">Borovice Světlá</option>
+                                            </optgroup>
+                                            <optgroup label="Kámen">
+                                                <option value="concrete">Beton Tmavý</option>
+                                                <option value="concrete_light">Beton Světlý</option>
+                                                <option value="marble">Mramor Carrara</option>
+                                                <option value="stone_black">Břidlice Černá</option>
+                                            </optgroup>
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-[9px] text-gray-400 mb-0.5">Orientace</label>
-                                        <select id="handleOrientationGlobal" onchange="draw(); update3DMaterial();"
+                                        <label class="block text-[9px] text-gray-400 mb-0.5">Pracovní Deska</label>
+                                        <select id="wtDecorSelect" onchange="draw(); update3DMaterial();"
                                             class="w-full border rounded px-2 py-1.5 bg-gray-50">
-                                            <option value="vertical">Svisle</option>
-                                            <option value="horizontal">Vodorovně</option>
+                                            <option value="wood_oak">Dub / Dřevo</option>
+                                            <option value="wood_dark">Ořech / Tmavé Dřevo</option>
+                                            <option value="concrete">Beton</option>
+                                            <option value="stone_black">Černý Kámen</option>
+                                            <option value="marble">Mramor</option>
+                                            <option value="white_matte">Bílá</option>
                                         </select>
                                     </div>
-                                </div>
-
-                                <!-- Plinth (Sokl) Settings -->
-                                <div class="pt-2 border-t border-gray-100">
-                                    <h4 class="text-[10px] uppercase font-bold text-gray-400 mb-2">Sokly</h4>
-                                    <div class="space-y-2">
+                                    <div class="grid grid-cols-2 gap-2">
                                         <div>
-                                            <label class="block text-[9px] text-gray-400 mb-0.5">Dekor Soklu</label>
-                                            <select id="plinthDecorGlobal"
-                                                onchange="draw(); if(currentView === '3d') draw3D();"
-                                                class="w-full border rounded px-2 py-1.5 bg-gray-50 text-[11px]">
-                                                <option value="match_cabinet" selected>Stejný jako korpus</option>
-                                                <option value="white_matte">Bílá Matná</option>
-                                                <option value="grey_matte">Šedá</option>
-                                                <option value="black_matte">Černá Matná</option>
-                                                <option value="oak">Dub</option>
+                                            <label class="block text-[9px] text-gray-400">Tl. Desky</label>
+                                            <input id="wtThickness" type="number" value="38" oninput="draw()"
+                                                class="w-full border rounded px-2 py-1 bg-gray-50">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[9px] text-gray-400">Tl. Korpusu</label>
+                                            <input id="matThickness" type="number" value="18" oninput="draw()"
+                                                class="w-full border rounded px-2 py-1 bg-gray-50">
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label class="block text-[9px] text-gray-400 mb-0.5">Úchytky</label>
+                                            <select id="handleStyle" onchange="draw(); update3DMaterial();"
+                                                class="w-full border rounded px-2 py-1.5 bg-gray-50">
+                                                <option value="modern_chrome">Chrom Moderní</option>
+                                                <option value="black_matte">Černé Matné</option>
+                                                <option value="gold_brass">Zlatá Mosaz</option>
+                                                <option value="none">Bezúchytkové (Push)</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label class="block text-[9px] text-gray-400 mb-0.5">Tloušťka soklu
-                                                (mm)</label>
-                                            <input id="plinthThicknessGlobal" type="number" value="18" oninput="draw()"
-                                                class="w-full border rounded px-2 py-1 bg-gray-50 text-[11px]">
+                                            <label class="block text-[9px] text-gray-400 mb-0.5">Orientace</label>
+                                            <select id="handleOrientationGlobal" onchange="draw(); update3DMaterial();"
+                                                class="w-full border rounded px-2 py-1.5 bg-gray-50">
+                                                <option value="vertical">Svisle</option>
+                                                <option value="horizontal">Vodorovně</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Plinth (Sokl) Settings -->
+                                    <div class="pt-2 border-t border-gray-100">
+                                        <h4 class="text-[10px] uppercase font-bold text-gray-400 mb-2">Sokly</h4>
+                                        <div class="space-y-2">
+                                            <div>
+                                                <label class="block text-[9px] text-gray-400 mb-0.5">Dekor Soklu</label>
+                                                <select id="plinthDecorGlobal"
+                                                    onchange="draw(); if(currentView === '3d') draw3D();"
+                                                    class="w-full border rounded px-2 py-1.5 bg-gray-50 text-[11px]">
+                                                    <option value="match_cabinet" selected>Stejný jako korpus</option>
+                                                    <option value="white_matte">Bílá Matná</option>
+                                                    <option value="grey_matte">Šedá</option>
+                                                    <option value="black_matte">Černá Matná</option>
+                                                    <option value="oak">Dub</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-[9px] text-gray-400 mb-0.5">Tloušťka soklu
+                                                    (mm)</label>
+                                                <input id="plinthThicknessGlobal" type="number" value="18"
+                                                    oninput="draw()"
+                                                    class="w-full border rounded px-2 py-1 bg-gray-50 text-[11px]">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Room & Dimensions -->
-                        <div class="pt-3 border-t border-dashed border-gray-200">
-                            <h3 class="text-[10px] uppercase font-bold text-blue-600 mb-2">Místnost & Rozměry</h3>
+                    </div>
+                </details>
+
+                <!-- 3. MÍSTNOST & ROZMĚRY (Collapsible) -->
+                <details class="group bg-white border border-gray-200 rounded overflow-hidden shadow-sm">
+                    <summary
+                        class="flex items-center justify-between p-3 cursor-pointer bg-slate-50 hover:bg-slate-100 select-none border-b border-gray-100">
+                        <span class="text-xs font-bold uppercase text-gray-700 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-purple-500" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                            </svg>
+                            Místností a Rozměry
+                        </span>
+                        <svg class="w-4 h-4 text-gray-400 transition-transform group-open:rotate-180"
+                            viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd"
+                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                clip-rule="evenodd" />
+                        </svg>
+                    </summary>
+
+                    <div class="p-3 space-y-4 bg-white text-xs">
+
+
+                        <!-- Room & Dimensions Content -->
+                        <div>
                             <div class="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label class="block text-[9px] text-gray-400">Šířka stěny (cm)</label>
-                                    <input id="wallWidth" type="number" value="300" oninput="draw(); update3DWall()"
+                                    <label class="block text-[9px] text-gray-400">Šířka stěny (mm)</label>
+                                    <input id="wallWidth" type="number" value="3000"
+                                        oninput="draw(); update3DWall(); draw3D(); updateTotalStats()"
                                         class="w-full border rounded px-2 py-1 bg-gray-50">
                                 </div>
                                 <div>
-                                    <label class="block text-[9px] text-gray-400">Výška stropu (cm)</label>
-                                    <input id="ceilHeight" type="number" value="260" oninput="draw(); update3DWall()"
+                                    <label class="block text-[9px] text-gray-400">Výška stropu (mm)</label>
+                                    <input id="ceilHeight" type="number" value="2600"
+                                        oninput="draw(); update3DWall(); draw3D(); updateTotalStats()"
                                         class="w-full border rounded px-2 py-1 bg-gray-50">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-[9px] text-gray-400">Hloubka stěny (mm)</label>
+                                    <input id="wallDepth" type="number" value="150"
+                                        oninput="draw(); update3DWall(); draw3D()"
+                                        class="w-full border rounded px-2 py-1 bg-gray-50">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-[9px] text-gray-400 font-bold uppercase mb-1">Odsazení od
+                                        kraje (mm)</label>
+                                    <input id="layoutOffset" type="number" value="0"
+                                        oninput="draw(); update3DWall(); draw3D(); updateTotalStats()"
+                                        class="w-full border rounded px-2 py-1 bg-blue-50/50 font-bold text-blue-900 focus:ring-2 focus:ring-blue-500 transition-all shadow-inner">
                                 </div>
                                 <div class="col-span-2">
                                     <label class="block text-[9px] text-gray-400">Barva stěny</label>
@@ -294,38 +361,117 @@
             </div>
 
 
-            <div id="totalStats" class="text-xs font-mono text-center text-blue-600 font-bold pt-2 border-t"></div>
         </div>
 
-        <!-- MODULE LIST (Scrollable) -->
-        <div id="moduleList" class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-            <div class="text-center text-gray-400 text-sm">Načítám...</div>
+        <!-- KATALOG (Now replaces the module list) -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-6 bg-gray-50 border-t border-gray-100">
+            <div>
+                <h3 class="text-[10px] uppercase font-black text-blue-900/40 mb-3 tracking-widest px-1">Katalog modulů
+                </h3>
+                <div class="grid grid-cols-1 gap-3">
+                    <!-- Spodní -->
+                    <div draggable="true" ondragstart="handleCatalogDragStart(event, 'base')"
+                        class="catalog-item bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4 group">
+                        <div
+                            class="w-16 h-16 bg-blue-50 rounded border border-blue-100 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                            <svg viewBox="0 0 100 100" class="w-12 h-12 text-blue-600">
+                                <rect x="25" y="40" width="50" height="50" rx="2" fill="none" stroke="currentColor"
+                                    stroke-width="4" />
+                                <line x1="25" y1="50" x2="75" y2="50" stroke="currentColor" stroke-width="2" />
+                                <circle cx="65" cy="45" r="2" fill="currentColor" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="font-black text-xs text-gray-800 uppercase tracking-tight">Spodní skříňka</div>
+                            <div class="text-[9px] text-gray-400 font-bold">Základní modul (v. 720mm)</div>
+                        </div>
+                    </div>
+
+                    <!-- Horní -->
+                    <div draggable="true" ondragstart="handleCatalogDragStart(event, 'wall')"
+                        class="catalog-item bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4 group">
+                        <div
+                            class="w-16 h-16 bg-blue-50 rounded border border-blue-100 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                            <svg viewBox="0 0 100 100" class="w-12 h-12 text-blue-600">
+                                <rect x="25" y="10" width="50" height="50" rx="2" fill="none" stroke="currentColor"
+                                    stroke-width="4" />
+                                <line x1="25" y1="20" x2="75" y2="20" stroke="currentColor" stroke-width="2" />
+                                <circle cx="65" cy="15" r="2" fill="currentColor" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="font-black text-xs text-gray-800 uppercase tracking-tight">Horní skříňka</div>
+                            <div class="text-[9px] text-gray-400 font-bold">Závěsný modul (v. 720mm)</div>
+                        </div>
+                    </div>
+
+                    <!-- Vysoká -->
+                    <div draggable="true" ondragstart="handleCatalogDragStart(event, 'tall')"
+                        class="catalog-item bg-white p-3 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4 group">
+                        <div
+                            class="w-16 h-16 bg-blue-50 rounded border border-blue-100 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                            <svg viewBox="0 0 100 100" class="w-12 h-12 text-blue-600">
+                                <rect x="25" y="10" width="50" height="80" rx="2" fill="none" stroke="currentColor"
+                                    stroke-width="4" />
+                                <line x1="25" y1="40" x2="75" y2="40" stroke="currentColor" stroke-width="2" />
+                                <circle cx="65" cy="15" r="2" fill="currentColor" />
+                                <circle cx="65" cy="45" r="2" fill="currentColor" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="font-black text-xs text-gray-800 uppercase tracking-tight">Vysoká skříň</div>
+                            <div class="text-[9px] text-gray-400 font-bold">Potravinová / Pro spotřebiče</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Drag Instruction -->
+            <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 text-center space-y-2">
+                <div class="text-blue-600 font-black text-[10px] uppercase">Rychlý návod</div>
+                <p class="text-[10px] text-blue-900/60 leading-relaxed font-medium">
+                    Přetáhněte modul z katalogu přímo na výkres vpravo. Skříňky se k sobě automaticky přichytí.
+                    Kliknutím na skříňku ji můžete detailně upravit.
+                </p>
+            </div>
         </div>
 
-        <!-- FOOTER ACTIONS -->
+        <!-- FOOTER ACTIONS (Simplified) -->
         <div class="p-4 bg-white border-t border-gray-200 z-20 shadow-[0_-5px_15px_rgba(0,0,0,0.05)]">
-            <div class="grid grid-cols-3 gap-2 mb-3">
-                <button onclick="addModule('base')"
-                    class="py-2 border border-gray-300 rounded hover:bg-blue-50 text-xs font-bold text-gray-700">SPODNÍ</button>
-                <button onclick="addModule('wall')"
-                    class="py-2 border border-gray-300 rounded hover:bg-blue-50 text-xs font-bold text-gray-700">HORNÍ</button>
-                <button onclick="addModule('tall')"
-                    class="py-2 border border-gray-300 rounded hover:bg-blue-50 text-xs font-bold text-gray-700">VYSOKÁ</button>
-            </div>
             <div class="flex gap-2">
-                <button onclick="clearAll()"
-                    class="px-3 py-2 text-xs font-bold text-red-600 border border-red-200 rounded hover:bg-red-50">Smazat</button>
+                <button
+                    onclick="if(confirm('Opravdu smazat vše?')) { modules=[]; draw(); if(currentView==='3d') draw3D(); updateTotalStats(); }"
+                    class="px-4 py-2 text-[10px] font-black uppercase text-red-600 border border-red-100 rounded-lg hover:bg-red-50 transition-colors">Smazat
+                    vše</button>
                 <button onclick="downloadPDF()"
-                    class="flex-1 bg-red-600 text-white text-xs font-bold py-2 rounded hover:bg-red-700">PDF</button>
+                    class="flex-1 bg-blue-900 text-white text-[10px] font-black uppercase py-2 rounded-lg hover:bg-blue-950 transition-all shadow-md active:scale-95">Exportovat
+                    PDF</button>
                 <button onclick="exportCSV()"
-                    class="flex-1 bg-green-600 text-white text-xs font-bold py-2 rounded hover:bg-green-700">CSV</button>
+                    class="flex-1 bg-emerald-600 text-white text-[10px] font-black uppercase py-2 rounded-lg hover:bg-emerald-700 transition-all shadow-md active:scale-95">Exportovat
+                    CSV</button>
+                <button onclick="exportToAR()"
+                    class="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[10px] font-black uppercase py-2 rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md active:scale-95 flex items-center justify-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                    </svg>
+                    AR Náhled</button>
             </div>
         </div>
+    </div>
     </div>
 
 
     <!-- PRAVÝ PANEL: Canvas -->
-    <div id="canvasContainer" class="flex-1 blueprint-bg relative overflow-auto p-4 md:p-10">
+    <div id="canvasContainer" class="flex-1 blueprint-bg relative overflow-auto p-4 md:p-10"
+        ondragover="handleCanvasDragOver(event)" ondrop="handleCanvasDrop(event)">
+
+        <!-- Plovoucí editor (Pop-over) -->
+        <div id="floatingEditor"
+            class="hidden bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-200 p-4 ring-1 ring-black/5 animate-in fade-in zoom-in duration-200">
+            <div id="editorContent"></div>
+        </div>
         <!-- Toolbar -->
         <div class="sticky top-0 left-0 right-0 flex justify-between items-start pointer-events-none z-20 gap-4 mb-4">
             <div class="flex flex-col gap-2 pointer-events-auto">
@@ -350,6 +496,11 @@
                         class="px-4 py-2 text-xs font-black rounded hover:bg-gray-100 text-gray-600">BOKORYS</button>
                     <button onclick="setView('3d')" id="btn-3d"
                         class="px-4 py-2 text-xs font-black rounded hover:bg-gray-100 text-gray-600">3D NÁHLED</button>
+
+                    <div id="totalStats"
+                        class="ml-4 pl-4 border-l border-gray-200 flex items-center gap-6 text-[10px] font-black uppercase tracking-tight text-blue-900 pointer-events-auto">
+                        <!-- Filled by JS -->
+                    </div>
                 </div>
             </div>
 
@@ -396,7 +547,7 @@
                     <span id="subWorktop" class="text-[10px] font-black text-blue-900 text-right pr-2">0 Kč</span>
                 </div>
 
-                <!-- Row 3: Úchytka -->
+                <!-- Row 3: Úchytky -->
                 <div
                     class="grid grid-cols-[100px_1fr_90px_100px] gap-2 items-center px-1 py-0.5 hover:bg-blue-50/20 transition-colors rounded">
                     <span class="text-[9px] text-gray-700 font-extrabold uppercase">Úchytky</span>
@@ -409,6 +560,29 @@
                         class="text-[10px] font-black text-gray-700 bg-gray-100/40 px-1.5 rounded text-center">0
                         ks</span>
                     <span id="subHandle" class="text-[10px] font-black text-blue-900 text-right pr-2">0 Kč</span>
+                </div>
+
+                <!-- Row 4: Kování (Panty + Výsuvy) -->
+                <div
+                    class="grid grid-cols-[100px_1fr_90px_100px] gap-2 items-center px-1 py-0.5 hover:bg-blue-50/20 transition-colors rounded border-t border-blue-50 mt-1 pt-1">
+                    <span class="text-[9px] text-gray-700 font-extrabold uppercase">Kování</span>
+                    <div class="flex flex-col gap-1">
+                        <div class="flex items-center gap-1 justify-center">
+                            <input type="number" id="priceHinge" value="60" oninput="updateTotalStats()"
+                                class="w-12 border border-blue-50 rounded px-1 py-0.5 text-[10px] font-bold text-blue-800 bg-white text-center">
+                            <span class="text-[8px] text-gray-400 font-bold">Panty</span>
+                        </div>
+                        <div class="flex items-center gap-1 justify-center">
+                            <input type="number" id="priceDrawer" value="800" oninput="updateTotalStats()"
+                                class="w-12 border border-blue-50 rounded px-1 py-0.5 text-[10px] font-bold text-blue-800 bg-white text-center">
+                            <span class="text-[8px] text-gray-400 font-bold">Výsuv</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-1 items-center">
+                        <span id="qtyHinge" class="text-[9px] font-bold text-gray-600">0 P</span>
+                        <span id="qtyDrawer" class="text-[9px] font-bold text-gray-600">0 V</span>
+                    </div>
+                    <span id="subHardware" class="text-[10px] font-black text-blue-900 text-right pr-2">0 Kč</span>
                 </div>
 
                 <!-- Total Row -->
@@ -427,6 +601,10 @@
     <script>
         // --- CONFIG & STATE ---
         let currentView = 'front'; // front, top, side
+        let selectedModuleId = null; // Currently selected module for editing
+        let draggingModuleType = null; // Type of module being dragged from catalog
+        let dragGhostX = null; // Blueprint-space X coordinate of the ghost
+        let lastBlueprintState = null; // Cache of blueprint metrics for coordinate mapping
 
         // Appliance Types Definitions
         const APPLIANCE_TYPES = {
@@ -473,7 +651,9 @@
             const prices = {
                 lamino: document.getElementById('priceLamino').value,
                 worktop: document.getElementById('priceWorktop').value,
-                handle: document.getElementById('priceHandle').value
+                handle: document.getElementById('priceHandle').value,
+                hinge: document.getElementById('priceHinge').value,
+                drawer: document.getElementById('priceDrawer').value
             };
             localStorage.setItem('cabinet_prices', JSON.stringify(prices));
         }
@@ -486,6 +666,8 @@
                     if (prices.lamino) document.getElementById('priceLamino').value = prices.lamino;
                     if (prices.worktop) document.getElementById('priceWorktop').value = prices.worktop;
                     if (prices.handle) document.getElementById('priceHandle').value = prices.handle;
+                    if (prices.hinge) document.getElementById('priceHinge').value = prices.hinge;
+                    if (prices.drawer) document.getElementById('priceDrawer').value = prices.drawer;
                 }
             } catch (e) { console.error("Error loading prices", e); }
         }
@@ -500,66 +682,186 @@
             loadPricesFromLocal();
             loadCompanyData();
             renderModuleList();
+
+            // Add global click listener for selection
+            const canvas = document.getElementById('canvas');
+            canvas.addEventListener('click', onCanvasClick);
+
+            // Re-draw initial
             draw();
-            initPriceBarDragging();
+            initDraggable(document.getElementById('priceBar'));
+            initDraggable(document.getElementById('floatingEditor'));
         }
 
-        function initPriceBarDragging() {
-            const bar = document.getElementById('priceBar');
-            if (!bar) return;
-
-            // Ensure absolute positioning
-            bar.style.position = 'absolute';
-            bar.style.top = '10px';
-            bar.style.right = '10px';
-            bar.style.left = 'auto'; // Reset potential flex/css values
-            bar.style.cursor = 'grab';
-
+        function initDraggable(el) {
+            if (!el) return;
             let isDragging = false;
             let offset = { x: 0, y: 0 };
 
-            bar.onmousedown = function (e) {
-                // Ignore if clicked on input or button
+            const onMouseDown = (e) => {
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.closest('button')) return;
-
                 isDragging = true;
-                bar.style.cursor = 'grabbing';
-
-                // Get container rect
+                el.style.position = 'absolute';
+                el.style.zIndex = '100';
+                const rect = el.getBoundingClientRect();
                 const containerRect = document.getElementById('canvasContainer').getBoundingClientRect();
-                const barRect = bar.getBoundingClientRect();
-
-                offset.x = e.clientX - barRect.left;
-                offset.y = e.clientY - barRect.top;
-
+                offset.x = e.clientX - rect.left;
+                offset.y = e.clientY - rect.top;
                 e.preventDefault();
             };
 
-            document.onmousemove = function (e) {
+            const onMouseMove = (e) => {
                 if (!isDragging) return;
-
                 const container = document.getElementById('canvasContainer');
                 const containerRect = container.getBoundingClientRect();
-
                 let x = e.clientX - containerRect.left - offset.x;
                 let y = e.clientY - containerRect.top - offset.y;
-
-                // Constraints (optional, keep within container)
-                const maxX = containerRect.width - bar.offsetWidth;
-                const maxY = containerRect.height - bar.offsetHeight;
-
+                const maxX = containerRect.width - el.offsetWidth;
+                const maxY = containerRect.height - el.offsetHeight;
                 x = Math.max(0, Math.min(x, maxX));
                 y = Math.max(0, Math.min(y, maxY));
-
-                bar.style.left = x + 'px';
-                bar.style.top = y + 'px';
-                bar.style.right = 'auto';
+                el.style.left = x + 'px';
+                el.style.top = y + 'px';
+                el.style.right = 'auto';
             };
 
-            document.onmouseup = function () {
+            const onMouseUp = () => {
                 isDragging = false;
-                bar.style.cursor = 'grab';
+                el.style.cursor = 'grab';
             };
+
+            el.addEventListener('mousedown', onMouseDown);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        }
+
+        // --- INTERACTIVE FEATURES (Drag & Drop, Selection) ---
+        function handleCatalogDragStart(e, type) {
+            draggingModuleType = type;
+            // Transparent drag image as we draw our own ghost on canvas
+            const img = new Image();
+            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            e.dataTransfer.setDragImage(img, 0, 0);
+        }
+
+        function handleCanvasDragOver(e) {
+            e.preventDefault();
+            if (!draggingModuleType) return;
+
+            const pos = getMousePosOnCanvas(e);
+            const blueprintX = screenToBlueprintX(pos.x);
+            dragGhostX = blueprintX;
+            draw(); // Redraw with ghost
+        }
+
+        function handleCanvasDrop(e) {
+            e.preventDefault();
+            if (!draggingModuleType) return;
+
+            const pos = getMousePosOnCanvas(e);
+            const blueprintX = screenToBlueprintX(pos.x);
+
+            addModule(draggingModuleType, blueprintX);
+
+            draggingModuleType = null;
+            dragGhostX = null;
+            draw();
+        }
+
+        function getMousePosOnCanvas(e) {
+            const canvas = document.getElementById('canvas');
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        function screenToBlueprintX(screenX) {
+            if (!lastBlueprintState) return 0;
+            const { startX, toPx, scale } = lastBlueprintState;
+            return (screenX - startX) / scale;
+        }
+
+        function onCanvasClick(e) {
+            const pos = getMousePosOnCanvas(e);
+
+            // Hit detection
+            const items = getPreparedModules();
+            const { startX, toPx, floorY, scale } = lastBlueprintState;
+
+            let clickedId = null;
+
+            // Sort items by Z (front to back) or elevation? 
+            // For now, simple loop
+            items.forEach(item => {
+                const x = startX + toPx(item.x);
+                const w = toPx(item.width);
+                const h = toPx(item.height);
+                const y = floorY - toPx(item.elevation + item.height);
+
+                if (pos.x >= x && pos.x <= x + w && pos.y >= y && pos.y <= y + h) {
+                    clickedId = item.id;
+                }
+            });
+
+            if (clickedId !== null) {
+                selectModule(clickedId, e);
+            } else {
+                deselectAll();
+            }
+        }
+
+        function selectModule(id, event = null) {
+            selectedModuleId = id;
+            const item = modules.find(m => m.id === id);
+
+            // Show floating editor
+            showFloatingEditor(id, event);
+            draw();
+            if (currentView === '3d') draw3D();
+        }
+
+        function deselectAll() {
+            selectedModuleId = null;
+            hideFloatingEditor();
+            draw();
+            if (currentView === '3d') draw3D();
+        }
+
+        function showFloatingEditor(id, event = null) {
+            const editor = document.getElementById('floatingEditor');
+            const content = document.getElementById('editorContent');
+
+            // Render specific module editor content
+            const m = modules.find(mod => mod.id === id);
+            content.innerHTML = renderSingleModuleForm(m);
+
+            editor.classList.remove('hidden');
+
+            // Position editor
+            if (event) {
+                // Near mouse
+                editor.style.left = Math.min(window.innerWidth - 380, event.clientX + 20) + 'px';
+                editor.style.top = Math.min(window.innerHeight - 500, event.clientY - 100) + 'px';
+            } else {
+                // Over the module (approximate)
+                const items = getPreparedModules();
+                const item = items.find(mod => mod.id === id);
+                const { startX, toPx, floorY } = lastBlueprintState;
+                const canvas = document.getElementById('canvas');
+                const rect = canvas.getBoundingClientRect();
+
+                const x = rect.left + startX + toPx(item.x + item.width / 2) - 175;
+                const y = rect.top + floorY - toPx(item.elevation + item.height + 50) - 200;
+
+                editor.style.left = Math.max(10, Math.min(window.innerWidth - 380, x)) + 'px';
+                editor.style.top = Math.max(10, Math.min(window.innerHeight - 500, y)) + 'px';
+            }
+        }
+
+        function hideFloatingEditor() {
+            document.getElementById('floatingEditor').classList.add('hidden');
         }
 
         function setView(view) {
@@ -581,11 +883,11 @@
 
             const canvas = document.getElementById('canvas');
             const canvas3d = document.getElementById('canvas3d');
-
             if (view === '3d') {
                 canvas.classList.add('hidden');
                 canvas3d.classList.remove('hidden');
                 init3D();
+                update3DWall();
                 setTimeout(draw3D, 100);
             } else {
                 canvas.classList.remove('hidden');
@@ -597,10 +899,10 @@
         // --- DATA MANIPULATION ---
         const CORNER_SIZE = 900; // mm for standard corner
 
-        function addModule(type) {
+        function addModule(type, dropX = null) {
             const id = Date.now();
             let newMod = {
-                id, type, width: 600, depth: 550, shelves: 1,
+                id, type, width: 600, height: 720, depth: 550, shelves: 1,
                 appliances: [],
                 hinge: 'left',
                 handleOrientation: 'vertical',
@@ -614,24 +916,43 @@
             } else if (type === 'tall') {
                 newMod.height = 2100; newMod.elevation = 100; newMod.depth = 600; newMod.shelves = 4; newMod.doorSplit = 720; newMod.showPlinth = true;
             }
-            modules.push(newMod);
-            renderModuleList(); draw();
+
+            if (dropX !== null) {
+                // Find insertion index based on X
+                const prepared = getPreparedModules();
+                let insertIdx = modules.length;
+                for (let i = 0; i < prepared.length; i++) {
+                    if (dropX < prepared[i].x + prepared[i].width / 2) {
+                        insertIdx = i;
+                        break;
+                    }
+                }
+                modules.splice(insertIdx, 0, newMod);
+            } else {
+                modules.push(newMod);
+            }
+
+            selectModule(id);
+            draw();
+            updateTotalStats();
         }
 
         function removeModule(id) {
             modules = modules.filter(m => m.id !== id);
-            renderModuleList(); draw();
+            deselectAll(); // Deselect if the removed module was selected
+            draw();
+            updateTotalStats();
         }
 
-        function updateModule(id, key, value) {
+        function updateModule(id, key, value, isInput = false) {
             const idx = modules.findIndex(m => m.id === id);
             if (idx > -1) {
-                if (key.startsWith('hinge')) modules[idx][key] = value;
-                else modules[idx][key] = parseFloat(value);
+                if (key.startsWith('hinge') || key === 'showPlinth') modules[idx][key] = value;
+                else modules[idx][key] = value === "" ? 0 : parseFloat(value);
 
-                // Re-render UI list if structural property changes
-                if (key.startsWith('hinge') || key === 'doorCount') {
-                    renderModuleList();
+                // Re-render UI ONLY on change (blur), not on input (typing) to preserve focus
+                if (!isInput && selectedModuleId === id) {
+                    document.getElementById('editorContent').innerHTML = renderSingleModuleForm(modules[idx]);
                 }
 
                 if (currentView === '3d') draw3D();
@@ -652,34 +973,43 @@
                 modules[modIdx].appliances.push({
                     id: 'app_' + Date.now(), type: defaultType, h: defs.defaultH, pos: defaultPos, count: defaultType === 'drawer_unit' ? 3 : 1, offX: 100
                 });
-                renderModuleList();
-                if (currentView === '3d') draw3D(); else draw();
+                if (selectedModuleId === moduleId) {
+                    document.getElementById('editorContent').innerHTML = renderSingleModuleForm(modules[modIdx]);
+                }
+                draw();
+                if (currentView === '3d') draw3D();
+                updateTotalStats();
             }
         }
 
-        function removeAppliance(moduleId, appIndex) {
-            const modIdx = modules.findIndex(m => m.id === moduleId);
-            if (modIdx > -1) {
-                modules[modIdx].appliances.splice(appIndex, 1);
-                renderModuleList();
-                if (currentView === '3d') draw3D(); else draw();
+        function removeAppliance(moduleId, appIdx) {
+            const mIdx = modules.findIndex(m => m.id === moduleId);
+            if (mIdx > -1) {
+                modules[mIdx].appliances.splice(appIdx, 1);
+                if (selectedModuleId === moduleId) {
+                    document.getElementById('editorContent').innerHTML = renderSingleModuleForm(modules[mIdx]);
+                }
+                draw();
+                if (currentView === '3d') draw3D();
+                updateTotalStats();
             }
         }
 
-        function updateAppliance(moduleId, appIndex, key, value) {
-            const modIdx = modules.findIndex(m => m.id === moduleId);
-            if (modIdx > -1) {
-                const app = modules[modIdx].appliances[appIndex];
+        function updateAppliance(moduleId, appIdx, key, value, isInput = false) {
+            const mIdx = modules.findIndex(m => m.id === moduleId);
+            if (mIdx > -1) {
                 if (key === 'type') {
-                    app.type = value;
-                    const defs = APPLIANCE_TYPES[value];
-                    app.h = defs.defaultH;
-                    if (defs.defaultPos > 0) app.pos = defs.defaultPos;
-                    if (value === 'socket') { app.count = 2; app.offX = 100; if (modules[modIdx].type === 'wall') app.pos = 1100; }
-                    if (value === 'drawer_unit') { app.count = 3; }
-                    renderModuleList();
+                    modules[mIdx].appliances[appIdx].type = value;
+                    modules[mIdx].appliances[appIdx].h = APPLIANCE_TYPES[value].defaultH;
+                    modules[mIdx].appliances[appIdx].pos = APPLIANCE_TYPES[value].defaultPos;
+                    if (value === 'socket') { modules[mIdx].appliances[appIdx].count = 2; modules[mIdx].appliances[appIdx].offX = 100; if (modules[mIdx].type === 'wall') modules[mIdx].appliances[appIdx].pos = 1100; }
+                    if (value === 'drawer_unit') { modules[mIdx].appliances[appIdx].count = 3; }
                 } else {
-                    app[key] = parseFloat(value);
+                    modules[mIdx].appliances[appIdx][key] = value === "" ? 0 : parseFloat(value);
+                }
+
+                if (!isInput && selectedModuleId === moduleId) {
+                    document.getElementById('editorContent').innerHTML = renderSingleModuleForm(modules[mIdx]);
                 }
                 if (currentView === '3d') draw3D(); else draw();
                 updateTotalStats();
@@ -688,7 +1018,9 @@
 
         function clearAll() {
             if (confirm('Opravdu chcete smazat vše?')) {
-                modules = []; renderModuleList(); draw();
+                modules = []; deselectAll(); draw();
+                updateTotalStats();
+                if (currentView === '3d') draw3D();
             }
         }
 
@@ -717,6 +1049,7 @@
                     plinthThickness: document.getElementById('plinthThicknessGlobal').value,
                     wallW: document.getElementById('wallWidth').value,
                     wallH: document.getElementById('ceilHeight').value,
+                    wallD: document.getElementById('wallDepth').value,
                     wallColor: document.getElementById('wallColor').value
                 },
                 modules: modules
@@ -761,16 +1094,17 @@
                         document.getElementById('handleOrientationGlobal').value = data.config.handleOrientation;
                         document.getElementById('plinthDecorGlobal').value = data.config.plinthDecor;
                         document.getElementById('plinthThicknessGlobal').value = data.config.plinthThickness;
-                        document.getElementById('wallWidth').value = data.config.wallW;
-                        document.getElementById('ceilHeight').value = data.config.wallH;
-                        document.getElementById('wallColor').value = data.config.wallColor;
+                        if (data.config.wallW) document.getElementById('wallWidth').value = data.config.wallW;
+                        if (data.config.wallH) document.getElementById('ceilHeight').value = data.config.wallH;
+                        if (data.config.wallD) document.getElementById('wallDepth').value = data.config.wallD;
+                        if (data.config.wallColor) document.getElementById('wallColor').value = data.config.wallColor;
                     }
 
                     // 4. Restore Modules
                     modules = data.modules || [];
 
                     // 5. Update UI
-                    renderModuleList();
+                    deselectAll(); // Clear any previous selection
                     draw();
                     if (currentView === '3d') {
                         init3D();
@@ -888,15 +1222,13 @@
                 const backW = w - 2;
                 csv += `${label};${m.type};Záda (HDF);1;${backW};${backH};${backThick};Bílá HDF\n`;
 
-                // Fronts (Simplified, ignoring gaps)
-                const doorH = (m.doorSplit > 0 && m.doorSplit < h) ? `${m.doorSplit} + ${h - m.doorSplit}` : h;
-                const doorCount = (m.doorSplit > 0 && m.doorSplit < h) ? 2 : 1;
-
-                if (m.doorSplit > 0 && m.doorSplit < h) {
-                    csv += `${label};${m.type};Dvířko Dolní;1;${w - 4};${m.doorSplit - 4};18;${decor}\n`;
-                    csv += `${label};${m.type};Dvířko Horní;1;${w - 4};${h - m.doorSplit - 4};18;${decor}\n`;
-                } else {
-                    csv += `${label};${m.type};Dvířko;1;${w - 4};${h - 4};18;${decor}\n`;
+                if (m.hinge !== 'none' && m.hinge !== 'nika' && !m.appliances.some(a => a.type === 'drawer_unit')) {
+                    if (m.doorSplit > 0 && m.doorSplit < h) {
+                        csv += `${label};${m.type};Dvířko Dolní;1;${w - 4};${m.doorSplit - 4};18;${decor}\n`;
+                        csv += `${label};${m.type};Dvířko Horní;1;${w - 4};${h - m.doorSplit - 4};18;${decor}\n`;
+                    } else {
+                        csv += `${label};${m.type};Dvířko;1;${w - 4};${h - 4};18;${decor}\n`;
+                    }
                 }
 
                 // Plinth (Sokl) in BOM
@@ -916,6 +1248,38 @@
                 csv += `Worktop;Deska;Pracovní deska;1;${totalLen};600;${wtThick};${wtDecor}\n`;
             }
 
+            // Hardware
+            let totalHinges = 0;
+            let totalDrawerSlides = 0;
+            modules.forEach(m => {
+                const hMm = parseFloat(m.height);
+                const dCount = m.doorCount || 1;
+                let activeDoors = 0;
+                if (m.hinge !== 'none' && m.hinge !== 'nika') activeDoors += 1;
+                if (dCount >= 2) {
+                    const h2 = (m.hinge2 !== undefined) ? m.hinge2 : m.hinge;
+                    if (h2 !== 'none' && h2 !== 'nika') activeDoors += 1;
+                }
+                if (dCount >= 3) {
+                    const h3 = (m.hinge3 !== undefined) ? m.hinge3 : m.hinge;
+                    if (h3 !== 'none' && h3 !== 'nika') activeDoors += 1;
+                }
+
+                if (activeDoors > 0) {
+                    let hingesPerDoor = 3;
+                    if (hMm <= 800) hingesPerDoor = 2;
+                    else if (hMm > 1500) hingesPerDoor = 4;
+                    totalHinges += (activeDoors * hingesPerDoor);
+                }
+
+                m.appliances.forEach(app => {
+                    if (app.type === 'drawer_unit') totalDrawerSlides += parseInt(app.count || 0);
+                });
+            });
+
+            if (totalHinges > 0) csv += `Hardware;Kování;Pant;${totalHinges};0;0;0;Kov\n`;
+            if (totalDrawerSlides > 0) csv += `Hardware;Kování;Sada výsuvů;${totalDrawerSlides};0;0;0;Kov\n`;
+
             // BOM
             const bom = "\ufeff" + csv; // UTF-8 BOM
             const blob = new Blob([bom], { type: 'text/csv;charset=utf-8;' });
@@ -926,149 +1290,126 @@
         }
 
         // --- UI RENDERING ---
-        function renderModuleList() {
-            const container = document.getElementById('moduleList');
-            container.innerHTML = '';
+        function renderSingleModuleForm(m) {
+            if (!m) return '';
+            const h = parseFloat(m.height);
+            const w = parseFloat(m.width);
+            const decor = document.getElementById('decorSelect').value;
+            const label = m.type === 'base' ? 'Spodní' : (m.type === 'wall' ? 'Horní' : 'Vysoká');
 
-            if (modules.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8">Žádné moduly.</div>';
-                updateTotalStats(); return;
+            let doorSettings = `
+                    <div class="border-t border-gray-100 pt-2 mt-2">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[10px] font-bold text-gray-500 uppercase">Dvířka / Otevírání</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-gray-500 text-[10px] uppercase">Směr / Typ</label>
+                                <select onchange="updateModule(${m.id}, 'hinge', this.value)" class="w-full border border-gray-300 rounded px-1 py-1 text-xs font-bold bg-white">
+                                    <option value="left" ${m.hinge === 'left' ? 'selected' : ''}>Levé (L)</option>
+                                    <option value="right" ${m.hinge === 'right' ? 'selected' : ''}>Pravé (P)</option>
+                                    <option value="top" ${m.hinge === 'top' ? 'selected' : ''}>Horní (V)</option>
+                                    <option value="nika" ${m.hinge === 'nika' ? 'selected' : ''}>NIKA</option>
+                                    <option value="none" ${m.hinge === 'none' ? 'selected' : ''}>Žádné</option>
+                                </select>
+                            </div>`;
+
+            if (m.hinge !== 'none' && m.hinge !== 'nika') {
+                doorSettings += `
+                        <div>
+                            <label class="block text-gray-500 text-[10px] uppercase">Počet</label>
+                            <select onchange="updateModule(${m.id}, 'doorCount', parseInt(this.value))" class="w-full border border-gray-300 rounded px-1 py-1 text-xs font-bold bg-white">
+                                <option value="1" ${(!m.doorCount || m.doorCount == 1) ? 'selected' : ''}>1 ks</option>
+                                <option value="2" ${m.doorCount == 2 ? 'selected' : ''}>2 ks</option>
+                                <option value="3" ${m.doorCount == 3 ? 'selected' : ''}>3 ks</option>
+                            </select>
+                        </div>`;
+
+                if (m.doorCount >= 2) {
+                    doorSettings += `
+                            <div class="col-span-2 grid grid-cols-2 gap-2 mt-1">
+                                <div><label class="block text-gray-500 text-[10px] uppercase">Dělení 1 (mm)</label><input type="number" value="${m.doorSplit || 0}" oninput="updateModule(${m.id}, 'doorSplit', this.value, true)" onchange="updateModule(${m.id}, 'doorSplit', this.value)" class="w-full border border-gray-300 rounded px-1 py-1 text-xs"></div>
+                                ${m.doorCount >= 3 ? `<div><label class="block text-gray-500 text-[10px] uppercase">Dělení 2 (mm)</label><input type="number" value="${m.doorSplit2 || 0}" oninput="updateModule(${m.id}, 'doorSplit2', this.value, true)" onchange="updateModule(${m.id}, 'doorSplit2', this.value)" class="w-full border border-gray-300 rounded px-1 py-1 text-xs"></div>` : ''}
+                            </div>`;
+                }
+            }
+            doorSettings += `</div></div>`;
+
+            let appliancesHtml = '';
+            if (m.appliances.length > 0) {
+                appliancesHtml += '<div class="mt-2 space-y-2">';
+                m.appliances.forEach((app, appIdx) => {
+                    const isSurface = APPLIANCE_TYPES[app.type].isSurface;
+                    const isSocket = app.type === 'socket';
+                    const isDrawerUnit = app.type === 'drawer_unit';
+                    let options = '';
+                    for (const [key, val] of Object.entries(APPLIANCE_TYPES)) { options += `<option value="${key}" ${app.type === key ? 'selected' : ''}>${val.label}</option>`; }
+                    let extraInputs = '';
+                    if (isSocket || isDrawerUnit) {
+                        let labelCount = isSocket ? 'Počet ks' : 'Počet zásuvek';
+                        let posInput = isSocket ? `<div><label class="text-[9px] uppercase text-blue-700 font-bold block">Zleva (mm)</label><input type="number" value="${app.offX || 0}" oninput="updateAppliance(${m.id}, ${appIdx}, 'offX', this.value)" class="w-full border border-blue-300 rounded px-1 text-center"></div>` : '';
+                        extraInputs = `<div class="col-span-2 grid grid-cols-2 gap-2 mt-1 pt-1 border-t border-blue-200"><div><label class="text-[9px] uppercase text-blue-700 font-bold block">${labelCount}</label><input type="number" value="${app.count || 1}" oninput="updateAppliance(${m.id}, ${appIdx}, 'count', this.value)" class="w-full border border-blue-300 rounded px-1 text-center font-bold"></div>${posInput}</div>`;
+                    }
+                    appliancesHtml += `
+                            <div class="p-2 bg-blue-50/50 border border-blue-100 rounded-lg text-xs hover:bg-blue-50 transition-colors">
+                                <div class="flex justify-between items-center mb-1">
+                                    <select onchange="updateAppliance(${m.id}, ${appIdx}, 'type', this.value)" class="bg-white border border-blue-200 rounded px-1 py-0.5 font-bold text-blue-900 w-32 uppercase text-[10px]">${options}</select>
+                                    <button onclick="removeAppliance(${m.id}, ${appIdx})" class="text-red-400 hover:text-red-600 font-bold px-1 text-lg">×</button>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div class="${isSocket ? 'hidden' : ''}"><label class="text-[9px] uppercase text-gray-500 block">${isDrawerUnit ? 'Výška sady' : 'Výška (mm)'}</label><input type="number" value="${app.h}" oninput="updateAppliance(${m.id}, ${appIdx}, 'h', this.value, true)" onchange="updateAppliance(${m.id}, ${appIdx}, 'h', this.value)" class="w-full border border-gray-200 rounded px-1 h-6"></div>
+                                    <div class="${isSurface ? 'opacity-50 pointer-events-none' : ''}"><label class="text-[9px] uppercase text-gray-500 block">${isSurface ? 'Na desce' : 'Základna (mm)'}</label><input type="number" value="${app.pos}" oninput="updateAppliance(${m.id}, ${appIdx}, 'pos', this.value, true)" onchange="updateAppliance(${m.id}, ${appIdx}, 'pos', this.value)" class="w-full border border-gray-200 rounded px-1 h-6"></div>
+                                </div>
+                                ${extraInputs}
+                            </div>`;
+                });
+                appliancesHtml += '</div>';
             }
 
-            modules.forEach((m, index) => {
-                const el = document.createElement('div');
-                el.className = "bg-white p-3 rounded shadow-sm border border-gray-200 relative group cursor-move";
-                el.draggable = true;
-                el.ondragstart = (e) => { e.dataTransfer.setData('text/plain', index); e.dataTransfer.effectAllowed = 'move'; };
-                el.ondragover = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
-                el.ondrop = (e) => {
-                    e.preventDefault();
-                    const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
-                    if (fromIdx !== index) {
-                        const movedItem = modules[fromIdx];
-                        modules.splice(fromIdx, 1);
-                        modules.splice(index, 0, movedItem);
-                        renderModuleList(); draw();
-                        if (currentView === '3d') draw3D();
-                    }
-                };
+            return `
+                    <div class="relative">
+                        <div class="flex justify-between items-start mb-4 border-b border-gray-100 pb-3">
+                            <div>
+                                <h2 class="text-sm font-black text-blue-900 uppercase tracking-tight">${label} Modul</h2>
+                                <p class="text-[9px] text-gray-400 font-bold uppercase">ID: ${m.id}</p>
+                            </div>
+                            <button onclick="removeModule(${m.id})" class="bg-red-50 text-red-500 hover:bg-red-100 p-1.5 rounded-lg transition-colors group">
+                               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                               </svg>
+                            </button>
+                        </div>
 
-                // Remove Button moved to end to prevent innerHTML overwrite
+                        <div class="grid grid-cols-2 gap-2 text-xs mb-1 bg-gray-50 p-2 rounded-xl border border-gray-100">
+                            ${m.type !== 'wall' ? `
+                            <div class="col-span-2 flex items-center justify-between gap-2 mb-1 pb-1 border-b border-gray-200">
+                                 <div class="flex items-center gap-2">
+                                    <input type="checkbox" id="plinth_pop_${m.id}" ${m.showPlinth ? 'checked' : ''} onchange="updateModule(${m.id}, 'showPlinth', this.checked ? 1 : 0)" class="rounded border-gray-300 w-4 h-4">
+                                    <label for="plinth_pop_${m.id}" class="text-[10px] text-gray-700 font-black uppercase cursor-pointer">Soklová lišta</label>
+                                 </div>
+                            </div>` : ''}
+                            <div><label class="block text-gray-400 text-[9px] uppercase font-bold mb-0.5">Šířka</label><input type="number" value="${m.width}" oninput="updateModule(${m.id}, 'width', this.value, true)" onchange="updateModule(${m.id}, 'width', this.value)" class="w-full border border-gray-200 rounded px-2 py-1 h-8 font-black text-blue-900"></div>
+                            <div><label class="block text-gray-400 text-[9px] uppercase font-bold mb-0.5">Výška</label><input type="number" value="${m.height}" oninput="updateModule(${m.id}, 'height', this.value, true)" onchange="updateModule(${m.id}, 'height', this.value)" class="w-full border border-gray-200 rounded px-2 py-1 h-8"></div>
+                            <div><label class="block text-gray-400 text-[9px] uppercase font-bold mb-0.5">Hloubka</label><input type="number" value="${m.depth}" oninput="updateModule(${m.id}, 'depth', this.value, true)" onchange="updateModule(${m.id}, 'depth', this.value)" class="w-full border border-gray-200 rounded px-2 py-1 h-8"></div>
+                            <div><label class="block text-blue-600 text-[9px] uppercase font-bold mb-0.5">Pozice (Zem)</label><input type="number" value="${m.elevation}" oninput="updateModule(${m.id}, 'elevation', this.value, true)" onchange="updateModule(${m.id}, 'elevation', this.value)" class="w-full border border-blue-200 bg-blue-50/50 rounded px-2 py-1 h-8 font-black text-blue-900"></div>
+                        </div>
 
-                // Header
-                let label = m.type === 'base' ? 'SPODNÍ' : (m.type === 'wall' ? 'HORNÍ' : 'VYSOKÁ');
-                el.innerHTML += `
-                    <div class="flex items-center gap-2 mb-2">
-                            <span class="text-[10px] w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded-full font-bold">${index + 1}</span>
-                            <span class="text-xs font-bold text-gray-700">${label}</span>
+                        ${doorSettings}
+
+                        <div class="border-t border-gray-100 pt-3 mt-3">
+                            <div class="flex justify-between items-center mb-2">
+                                    <span class="text-[10px] font-bold text-gray-500 uppercase">Zásuvky a spotřebiče</span>
+                                    <button onclick="addAppliance(${m.id})" class="text-[9px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded-md border border-emerald-100 hover:bg-emerald-100 transition-colors uppercase font-black">+ Přidat</button>
+                            </div>
+                            ${appliancesHtml}
+                        </div>
                     </div>
                 `;
+        }
 
-                // Dimensions
-                // Hinges helper
-                let doorSettings = `<div class="col-span-2 mt-2 pt-2 border-t border-gray-100 grid grid-cols-2 gap-2">`;
-                const getHingeOptions = (val) => `
-                    <option value="left" ${val === 'left' ? 'selected' : ''}>Levé (L)</option>
-                    <option value="right" ${val === 'right' ? 'selected' : ''}>Pravé (P)</option>
-                    <option value="top" ${val === 'top' ? 'selected' : ''}>Horní (V)</option>
-                    <option value="none" ${val === 'none' ? 'selected' : ''}>Žádné</option>
-                `;
-
-                if (m.type === 'tall' && m.doorCount > 1) {
-                    doorSettings += `<div class="col-span-2 space-y-1">`;
-                    // Bottom
-                    doorSettings += `<div><label class="block text-gray-500 text-[9px] uppercase">Otevírání 1. (Dole)</label><select onchange="updateModule(${m.id}, 'hinge', this.value)" class="w-full border border-gray-300 rounded px-1 py-0.5 text-[11px]">${getHingeOptions(m.hinge)}</select></div>`;
-                    // Middle / Top
-                    doorSettings += `<div><label class="block text-gray-500 text-[9px] uppercase">Otevírání 2.</label><select onchange="updateModule(${m.id}, 'hinge2', this.value)" class="w-full border border-gray-300 rounded px-1 py-0.5 text-[11px]">${getHingeOptions(m.hinge2 || m.hinge)}</select></div>`;
-                    if (m.doorCount === 3) {
-                        doorSettings += `<div><label class="block text-gray-500 text-[9px] uppercase">Otevírání 3. (Nahoře)</label><select onchange="updateModule(${m.id}, 'hinge3', this.value)" class="w-full border border-gray-300 rounded px-1 py-0.5 text-[11px]">${getHingeOptions(m.hinge3 || m.hinge)}</select></div>`;
-                    }
-                    doorSettings += `</div>`;
-                } else {
-                    doorSettings += `<div><label class="block text-gray-500 text-[10px] uppercase">Otevírání</label><select onchange="updateModule(${m.id}, 'hinge', this.value)" class="w-full border border-gray-300 rounded px-1 py-1 text-xs">${getHingeOptions(m.hinge)}</select></div>`;
-                }
-
-                // Handle Orientation (REMOVED - now Global)
-
-                // Split (Always show
-                if (m.hinge !== 'none') {
-                    // Door Count
-                    doorSettings += `<div class="col-span-2 grid grid-cols-2 gap-2"><div><label class="block text-gray-500 text-[10px] uppercase">Počet dvířek</label><select onchange="updateModule(${m.id}, 'doorCount', parseInt(this.value))" class="w-full border border-gray-300 rounded px-1 py-1 text-xs font-bold bg-gray-50"><option value="1" ${(!m.doorCount || m.doorCount == 1) ? 'selected' : ''}>1 (Plné)</option><option value="2" ${m.doorCount == 2 ? 'selected' : ''}>2 (Dělené)</option><option value="3" ${m.doorCount == 3 ? 'selected' : ''}>3 (3 Segmenty)</option></select></div>`;
-
-                    // Splits
-                    if (m.doorCount >= 2) {
-                        doorSettings += `<div><label class="block text-gray-500 text-[10px] uppercase">Výška 1. (Dole)</label><input type="number" value="${m.doorSplit || 0}" oninput="updateModule(${m.id}, 'doorSplit', this.value)" class="w-full border border-gray-300 rounded px-1 py-1 text-xs"></div>`;
-                    }
-                    if (m.doorCount >= 3) {
-                        doorSettings += `<div><label class="block text-gray-500 text-[10px] uppercase">Výška 2. (Střed)</label><input type="number" value="${m.doorSplit2 || 0}" oninput="updateModule(${m.id}, 'doorSplit2', this.value)" class="w-full border border-gray-300 rounded px-1 py-1 text-xs"></div>`;
-                    }
-                    doorSettings += `</div>`; // Close grid
-                }
-
-                doorSettings += `</div>`;
-
-                const content = document.createElement('div');
-                content.innerHTML = `
-                    <div class="grid grid-cols-2 gap-2 text-xs mb-1 bg-blue-50/30 p-1.5 rounded-lg border border-blue-100">
-                        ${m.type !== 'wall' ? `
-                        <div class="col-span-2 flex items-center justify-between gap-2 mb-1 pb-1 border-b border-blue-100">
-                             <div class="flex items-center gap-2">
-                                <input type="checkbox" id="plinth_${m.id}" ${m.showPlinth ? 'checked' : ''} onchange="updateModule(${m.id}, 'showPlinth', this.checked ? 1 : 0)" class="rounded border-gray-300 w-4 h-4">
-                                <label for="plinth_${m.id}" class="text-[11px] text-blue-700 font-bold uppercase cursor-pointer">Zakrývací sokl</label>
-                             </div>
-                             ${m.elevation > 0 ? '<span class="text-[9px] text-blue-400 font-medium">SOKL AKTIVNÍ</span>' : '<span class="text-[9px] text-gray-300 font-medium italic">VYŽADUJE VÝŠKU > 0</span>'}
-                        </div>` : ''}
-                        <div><label class="block text-gray-500 text-[10px] uppercase">Šířka (mm)</label><input type="number" value="${m.width}" oninput="updateModule(${m.id}, 'width', this.value)" class="w-full border border-gray-300 rounded px-1 py-1 font-bold"></div>
-                        <div><label class="block text-gray-500 text-[10px] uppercase">Výška skříně</label><input type="number" value="${m.height}" oninput="updateModule(${m.id}, 'height', this.value)" class="w-full border border-gray-300 rounded px-1 py-1"></div>
-                        <div><label class="block text-gray-500 text-[10px] uppercase">Hloubka</label><input type="number" value="${m.depth}" oninput="updateModule(${m.id}, 'depth', this.value)" class="w-full border border-gray-300 rounded px-1 py-1"></div>
-                        <div><label class="block text-blue-600 text-[10px] uppercase font-bold">Od země (mm)</label><input type="number" value="${m.elevation}" oninput="updateModule(${m.id}, 'elevation', this.value)" class="w-full border border-blue-200 bg-blue-50 rounded px-1 py-1 font-bold text-blue-900"></div>
-                    </div>
-                    ${doorSettings}
-                `;
-                el.appendChild(content);
-
-                // Appliances
-                const appContainer = document.createElement('div');
-                appContainer.className = "border-t border-gray-100 pt-2 mt-2";
-
-                let appliancesHtml = '';
-                if (m.appliances.length > 0) {
-                    appliancesHtml += '<div class="mt-2 space-y-2">';
-                    m.appliances.forEach((app, appIdx) => {
-                        const isSurface = APPLIANCE_TYPES[app.type].isSurface;
-                        const isSocket = app.type === 'socket';
-                        const isDrawerUnit = app.type === 'drawer_unit';
-                        let options = '';
-                        for (const [key, val] of Object.entries(APPLIANCE_TYPES)) { options += `<option value="${key}" ${app.type === key ? 'selected' : ''}>${val.label}</option>`; }
-                        let extraInputs = '';
-                        if (isSocket || isDrawerUnit) {
-                            let labelCount = isSocket ? 'Počet ks' : 'Počet zásuvek';
-                            let posInput = isSocket ? `<div><label class="text-[9px] uppercase text-blue-700 font-bold block">Zleva (mm)</label><input type="number" value="${app.offX || 0}" oninput="updateAppliance(${m.id}, ${appIdx}, 'offX', this.value)" class="w-full border border-blue-300 rounded px-1 text-center"></div>` : '';
-                            extraInputs = `<div class="col-span-2 grid grid-cols-2 gap-2 mt-1 pt-1 border-t border-blue-200"><div><label class="text-[9px] uppercase text-blue-700 font-bold block">${labelCount}</label><input type="number" value="${app.count || 1}" oninput="updateAppliance(${m.id}, ${appIdx}, 'count', this.value)" class="w-full border border-blue-300 rounded px-1 text-center font-bold"></div>${posInput}</div>`;
-                        }
-                        appliancesHtml += `<div class="p-2 bg-blue-50 border border-blue-200 rounded text-xs"><div class="flex justify-between items-center mb-1"><select onchange="updateAppliance(${m.id}, ${appIdx}, 'type', this.value)" class="bg-white border border-blue-300 rounded px-1 py-0.5 font-bold text-blue-900 w-32">${options}</select><button onclick="removeAppliance(${m.id}, ${appIdx})" class="text-red-400 hover:text-red-600 font-bold px-1">×</button></div><div class="grid grid-cols-2 gap-2"><div class="${isSocket ? 'hidden' : ''}"><label class="text-[9px] uppercase text-gray-500 block">${isDrawerUnit ? 'Celková výška' : 'Výška spotř.'}</label><input type="number" value="${app.h}" oninput="updateAppliance(${m.id}, ${appIdx}, 'h', this.value)" class="w-full border rounded px-1"></div><div class="${isSurface ? 'opacity-50 pointer-events-none' : ''}"><label class="text-[9px] uppercase text-gray-500 block">${isSurface ? 'Na desce' : 'Od dna (mm)'}</label><input type="number" value="${app.pos}" oninput="updateAppliance(${m.id}, ${appIdx}, 'pos', this.value)" class="w-full border rounded px-1"></div></div>${extraInputs}</div>`;
-                    });
-                    appliancesHtml += '</div>';
-                }
-
-                appContainer.innerHTML = `
-                    <div class="flex justify-between items-center mb-2">
-                            <span class="text-[10px] font-bold text-gray-500 uppercase">Vybavení / Zásuvky</span>
-                            <button onclick="addAppliance(${m.id})" class="text-[10px] bg-green-50 text-green-700 px-2 py-0.5 rounded border border-green-200 hover:bg-green-100">+ Přidat</button>
-                    </div>
-                    ${appliancesHtml}
-                `;
-                // Remove Button (Absolute top-right) - Re-added here to preserve event listeners
-                const delBtn = document.createElement('button');
-                delBtn.className = "absolute top-2 right-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded p-1 transition z-10 cursor-pointer";
-                delBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>';
-                delBtn.onmousedown = (e) => e.stopPropagation();
-                delBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); if (confirm('Opravdu smazat?')) removeModule(m.id); };
-                el.appendChild(delBtn);
-
-                el.appendChild(appContainer);
-                container.appendChild(el);
-            });
+        function renderModuleList() {
+            // This function is now only used for price updates or if we still want a fallback list.
+            // For now, let's keep it minimal or empty to avoid overlapping.
             updateTotalStats();
         }
 
@@ -1091,10 +1432,23 @@
             }
             const footprintW = Math.max(0, maxX - minX);
 
+            const wallWidthMm = parseFloat(document.getElementById('wallWidth').value) || 3000;
+            const wallHeightMm = parseFloat(document.getElementById('ceilHeight').value) || 2600;
+
             document.getElementById('totalStats').innerHTML = `
-                <div class="flex flex-col">
-                    <span class="text-blue-900 font-bold block">Celková šířka skříněk: ${(massW / 1000).toFixed(2)} m</span>
-                    <span class="text-gray-500 text-xs block mt-1">Délka kuchyně (zleva doprava): ${(footprintW / 1000).toFixed(2)} m</span>
+                <div class="flex items-center gap-6">
+                    <div class="flex flex-col">
+                        <span class="text-gray-400 text-[8px] leading-none mb-1 uppercase">Stěna</span>
+                        <span class="text-gray-600 font-bold">${(wallWidthMm / 10).toFixed(0)} × ${(wallHeightMm / 10).toFixed(0)} cm</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-gray-400 text-[8px] leading-none mb-1 uppercase">Délka kuchyně</span>
+                        <span class="text-blue-600 font-bold">${(footprintW / 1000).toFixed(2)} m</span>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-gray-400 text-[8px] leading-none mb-1 uppercase">Šířka skříněk</span>
+                        <span class="text-blue-900 font-bold">${(massW / 1000).toFixed(2)} m</span>
+                    </div>
                 </div>
             `;
 
@@ -1102,11 +1456,14 @@
             let totalLaminoArea = 0;
             let totalWorktopLen = 0;
             let totalHandles = 0;
+            let totalHinges = 0;
+            let totalDrawerSlides = 0;
 
             modules.forEach(m => {
                 const w = parseFloat(m.width) / 1000;
                 const h = parseFloat(m.height) / 1000;
                 const d = parseFloat(m.depth) / 1000;
+                const hMm = parseFloat(m.height);
 
                 // Basic Lamino Area (m2)
                 // Sides (2x), Bottom (1x)
@@ -1126,31 +1483,51 @@
                 // Worktop Length (Base modules only)
                 if (m.type === 'base') totalWorktopLen += w;
 
-                // Handles
+                // Handles & Hardware
                 // 1. Drawer Units
                 m.appliances.forEach(app => {
-                    if (app.type === 'drawer_unit') totalHandles += parseInt(app.count || 0);
+                    if (app.type === 'drawer_unit') {
+                        const count = parseInt(app.count || 0);
+                        totalHandles += count;
+                        totalDrawerSlides += count;
+                    }
                 });
+
                 // 2. Doors (segments that are NOT empty)
                 const dCount = m.doorCount || 1;
-                if (m.hinge !== 'none') totalHandles += 1;
+                let activeDoors = 0;
+                if (m.hinge !== 'none' && m.hinge !== 'nika') activeDoors += 1;
                 if (dCount >= 2) {
                     const h2 = (m.hinge2 !== undefined) ? m.hinge2 : m.hinge;
-                    if (h2 !== 'none') totalHandles += 1;
+                    if (h2 !== 'none' && h2 !== 'nika') activeDoors += 1;
                 }
                 if (dCount >= 3) {
                     const h3 = (m.hinge3 !== undefined) ? m.hinge3 : m.hinge;
-                    if (h3 !== 'none') totalHandles += 1;
+                    if (h3 !== 'none' && h3 !== 'nika') activeDoors += 1;
+                }
+
+                totalHandles += activeDoors;
+
+                // Hinges calculation logic
+                if (activeDoors > 0) {
+                    let hingesPerDoor = 3; // default
+                    if (hMm <= 800) hingesPerDoor = 2;
+                    else if (hMm > 1500) hingesPerDoor = 4;
+
+                    totalHinges += (activeDoors * hingesPerDoor);
                 }
             });
 
             const pLamino = parseFloat(document.getElementById('priceLamino').value) || 0;
             const pWorktop = parseFloat(document.getElementById('priceWorktop').value) || 0;
             const pHandle = parseFloat(document.getElementById('priceHandle').value) || 0;
+            const pHinge = parseFloat(document.getElementById('priceHinge').value) || 0;
+            const pDrawer = parseFloat(document.getElementById('priceDrawer').value) || 0;
 
             const subLaminoTotal = totalLaminoArea * pLamino;
             const subWorktopTotal = totalWorktopLen * pWorktop;
             const subHandleTotal = totalHandles * pHandle;
+            const subHardwareTotal = (totalHinges * pHinge) + (totalDrawerSlides * pDrawer);
 
             // Update UI elements
             document.getElementById('qtyLamino').innerText = totalLaminoArea.toFixed(2) + ' m²';
@@ -1162,7 +1539,12 @@
             document.getElementById('qtyHandle').innerText = totalHandles + ' ks';
             document.getElementById('subHandle').innerText = Math.round(subHandleTotal).toLocaleString() + ' Kč';
 
-            const total = subLaminoTotal + subWorktopTotal + subHandleTotal;
+            // Hardware UI
+            document.getElementById('qtyHinge').innerText = totalHinges + ' P';
+            document.getElementById('qtyDrawer').innerText = totalDrawerSlides + ' V';
+            document.getElementById('subHardware').innerText = Math.round(subHardwareTotal).toLocaleString() + ' Kč';
+
+            const total = subLaminoTotal + subWorktopTotal + subHandleTotal + subHardwareTotal;
             document.getElementById('totalPriceVal').innerText = Math.round(total).toLocaleString() + ' Kč';
 
             // Sync with local storage
@@ -1172,8 +1554,9 @@
         // --- PREPARATION LOGIC ---
         function getPreparedModules() {
             // Linear layout with smart stacking
-            let xFloor = 0;
-            let xWall = 0;
+            const offset = parseFloat(document.getElementById('layoutOffset')?.value) || 0;
+            let xFloor = offset;
+            let xWall = offset;
 
             return modules.map(m => {
                 let newItem = { ...m };
@@ -1395,32 +1778,33 @@
             ctx.scale(dpr, dpr);
 
             // Calculate bounding box in mm
-            let minX = Infinity, maxX = -Infinity;
+            // Now we use the Wall as the primary bounding box for centering
+            const wallWidthMm = parseFloat(document.getElementById('wallWidth').value) || 3000;
+            const wallHeightMm = parseFloat(document.getElementById('ceilHeight').value) || 2600;
+
             let maxH = 0;
             items.forEach(m => {
-                if (m.x < minX) minX = m.x;
-                if (m.x + m.width > maxX) maxX = m.x + m.width;
                 const top = (m.elevation || 0) + m.height;
                 if (top > maxH) maxH = top;
             });
-            if (!isFinite(minX)) { minX = 0; maxX = 0; }
 
-            const totalWidthMm = maxX - minX;
-            const totalHeightMm = Math.max(2200, maxH); // Ensure at least 2.2m height is buffered
+            const totalWidthMm = wallWidthMm;
+            const totalHeightMm = Math.max(2200, maxH, wallHeightMm);
 
             // Targets for scaling
             const targetW = logicalW * 0.85;
-            const targetH = logicalH * 0.70; // Leave 30% for labels/padding
+            const targetH = logicalH * 0.70;
 
             let scale = Math.min(targetW / totalWidthMm, targetH / totalHeightMm);
-            scale = Math.min(0.5, Math.max(0.2, scale)); // Clamp to sensible values
+            scale = Math.min(0.5, Math.max(0.2, scale));
 
             const totalWidthPx = totalWidthMm * scale;
-            const startX = (logicalW - totalWidthPx) / 2 - (minX * scale);
+            const startX = (logicalW - totalWidthPx) / 2;
             const floorY = logicalH - 80;
 
             const toPx = (val) => val * scale;
             const drawCtx = { ctx, scale, startX, floorY, toPx, items, canvas: { width: logicalW, height: logicalH } };
+            lastBlueprintState = { scale, startX, floorY, toPx, logicalW, logicalH };
 
             ctx.clearRect(0, 0, logicalW, logicalH);
             ctx.fillStyle = "#ffffff";
@@ -1429,6 +1813,19 @@
             if (currentView === 'front') drawFront(drawCtx);
             else if (currentView === 'top') drawTop(drawCtx);
             else if (currentView === 'side') drawSide(drawCtx);
+
+            // Draw Ghost (D&D)
+            if (dragGhostX !== null && draggingModuleType) {
+                const gx = startX + toPx(dragGhostX);
+                const gw = toPx(600); // Default width
+                ctx.fillStyle = "rgba(59, 130, 246, 0.2)";
+                ctx.strokeStyle = "#3b82f6";
+                ctx.setLineDash([5, 5]);
+                ctx.lineWidth = 2;
+                ctx.strokeRect(gx, floorY - toPx(820), gw, toPx(720));
+                ctx.fillRect(gx, floorY - toPx(820), gw, toPx(720));
+                ctx.setLineDash([]);
+            }
         }
 
         // --- VIEW: FRONT (NÁRYS) ---
@@ -1436,6 +1833,15 @@
             const toY = (hFromFloor) => floorY - toPx(hFromFloor);
             const toX = (val) => startX + toPx(val);
             const cabinetFill = getDecorFill();
+
+            // Wall outline
+            const w_mm = parseFloat(document.getElementById('wallWidth').value) || 3000;
+            const h_mm = parseFloat(document.getElementById('ceilHeight').value) || 2600;
+            ctx.strokeStyle = "#e2e8f0";
+            ctx.setLineDash([5, 5]);
+            ctx.strokeRect(startX, floorY - toPx(h_mm), toPx(w_mm), toPx(h_mm));
+            ctx.setLineDash([]);
+
             const showWorktop = document.getElementById('showWorktop').checked;
             const showDoors = document.getElementById('showDoors').checked;
             const showDims = document.getElementById('showDims').checked;
@@ -1455,7 +1861,15 @@
 
                 ctx.fillStyle = cabinetFill;
                 ctx.fillRect(x, startY, w, h);
-                ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+
+                // Selection Highlight
+                if (selectedModuleId === item.id) {
+                    ctx.strokeStyle = "#3b82f6";
+                    ctx.lineWidth = 4;
+                } else {
+                    ctx.strokeStyle = "#000";
+                    ctx.lineWidth = 2;
+                }
                 ctx.strokeRect(x, startY, w, h);
 
                 // Legs / Plinth
@@ -1579,7 +1993,7 @@
                             if (segIdx === 1 && item.hinge2) segHinge = item.hinge2;
                             if (segIdx === 2 && item.hinge3) segHinge = item.hinge3;
 
-                            if (segHinge !== 'none') drawDoorSwing(ctx, x, toY(item.elevation + seg.max), w, toPx(seg.max - seg.min), segHinge);
+                            if (segHinge !== 'none' && segHinge !== 'nika') drawDoorSwing(ctx, x, toY(item.elevation + seg.max), w, toPx(seg.max - seg.min), segHinge);
                             if (seg.min > 0) { ctx.beginPath(); ctx.moveTo(x, toY(item.elevation + seg.min)); ctx.lineTo(x + w, toY(item.elevation + seg.min)); ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.stroke(); }
                         }
                     });
@@ -1631,13 +2045,20 @@
         // --- VIEW: TOP (PŮDORYS) ---
         function drawTop({ ctx, scale, startX, floorY, toPx, items, canvas }) {
             const wallY = floorY - toPx(600);
+            const wallWidthMm = parseFloat(document.getElementById('wallWidth').value) || 3000;
+            const wallDepthMm = parseFloat(document.getElementById('wallDepth')?.value) || 150;
             const toX = (val) => startX + toPx(val);
             const cabinetFill = getDecorFill();
             const showDims = document.getElementById('showDims').checked;
 
-            // Draw Wall (šířka plátna)
-            ctx.beginPath(); ctx.moveTo(0, wallY); ctx.lineTo(canvas.width, wallY); ctx.strokeStyle = "#000"; ctx.lineWidth = 3; ctx.stroke();
-            ctx.fillStyle = "#eee"; ctx.fillRect(0, 0, canvas.width, wallY);
+            // Draw Wall with depth (Centered based on wallWidth)
+            ctx.fillStyle = "#e2e8f0";
+            ctx.fillRect(startX, wallY - toPx(wallDepthMm), toPx(wallWidthMm), toPx(wallDepthMm));
+            ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1;
+            ctx.strokeRect(startX, wallY - toPx(wallDepthMm), toPx(wallWidthMm), toPx(wallDepthMm));
+
+            // Fill area ABOVE wall (behind wall) - Not needed if we only draw the Rect, but for background:
+            // ctx.fillStyle = "#f1f5f9"; ctx.fillRect(0, 0, canvas.width, wallY - toPx(wallDepthMm));
 
             // Sort items by elevation for Top View (so wall cabinets draw ON TOP of base cabinets)
             const sortedItems = [...items].sort((a, b) => a.elevation - b.elevation);
@@ -1682,12 +2103,19 @@
         // --- VIEW: SIDE (BOKORYS) ---
         function drawSide({ ctx, scale, startX, floorY, toPx, items, canvas }) {
             const wallX = startX;
+            const wallDepthMm = parseFloat(document.getElementById('wallDepth')?.value) || 150;
             const toY = (hFromFloor) => floorY - toPx(hFromFloor);
             const cabinetFill = getDecorFill();
             const showDims = document.getElementById('showDims').checked;
 
             // Draw Floor line
             ctx.beginPath(); ctx.moveTo(0, floorY); ctx.lineTo(canvas.width, floorY); ctx.strokeStyle = "#888"; ctx.lineWidth = 1; ctx.stroke();
+
+            // Draw Wall thickness (Section)
+            ctx.fillStyle = "#cbd5e1";
+            ctx.fillRect(wallX - toPx(wallDepthMm), 0, toPx(wallDepthMm), floorY);
+            ctx.strokeStyle = "#94a3b8"; ctx.lineWidth = 1;
+            ctx.strokeRect(wallX - toPx(wallDepthMm), 0, toPx(wallDepthMm), floorY);
 
             items.forEach(item => {
                 const w = toPx(item.depth); // In side view, depth becomes width
@@ -1747,34 +2175,38 @@
         }
 
         function update3DWall() {
-            if (currentView === '3d' && scene) {
+            if (scene) {
                 const wall = scene.getObjectByName('backWall');
                 if (wall) {
-                    const w = parseFloat(document.getElementById('wallW')?.value || document.getElementById('wallWidth')?.value) || 5000;
-                    const h = parseFloat(document.getElementById('wallH')?.value || document.getElementById('wallHeight')?.value) || 3000;
+                    const inputWidth = parseFloat(document.getElementById('wallWidth').value) || 3000;
+                    const h = parseFloat(document.getElementById('ceilHeight').value) || 2600;
                     const color = document.getElementById('wallColor').value;
+                    const depth = parseFloat(document.getElementById('wallDepth').value) || 150;
 
-                    // Rebuild geometry
+                    // Update Back Wall
                     wall.geometry.dispose();
-                    wall.geometry = new THREE.PlaneGeometry(w, h);
-                    // Update material to Basic to match init3D
-                    wall.material.dispose();
-                    wall.material = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide });
+                    wall.geometry = new THREE.BoxGeometry(inputWidth, h, depth);
+                    wall.material.color.set(color);
 
-                    // Helper: Recalculate TRUE center
-                    const prepared = getPreparedModules();
-                    let minX = Infinity, maxX = -Infinity;
-                    if (prepared.length > 0) {
-                        prepared.forEach(m => {
-                            if (m.x < minX) minX = m.x;
-                            if (m.x + m.width > maxX) maxX = m.x + m.width;
-                        });
-                    } else {
-                        minX = 0; maxX = 2000;
+                    // Position so left edge is at X=0
+                    wall.position.set(inputWidth / 2, h / 2, -depth / 2);
+
+                    // Also update floor and camera target
+                    const floor = scene.getObjectByName('floor');
+                    if (floor) {
+                        const floorSize = Math.max(10000, inputWidth + 5000);
+                        floor.geometry.dispose();
+                        floor.geometry = new THREE.PlaneGeometry(floorSize, 10000);
+                        floor.position.set(floorSize / 2 - 2000, 0, 5000 - 1000);
                     }
-                    const centerX = (minX + maxX) / 2;
+                    if (controls) {
+                        controls.target.set(inputWidth / 2, 800, 0);
+                        controls.update();
+                    }
 
-                    wall.position.set(centerX, h / 2, -20);
+                    // Update Light
+                    const sun = scene.getObjectByName('sunLight');
+                    if (sun) sun.position.set(inputWidth / 2 + 500, 4500, 3000);
                 }
             }
         }
@@ -1970,70 +2402,71 @@
                     const pLamino = getVal('priceLamino');
                     const pWorktop = getVal('priceWorktop');
                     const pHandle = getVal('priceHandle');
+                    const pHinge = getVal('priceHinge');
+                    const pDrawer = getVal('priceDrawer');
+
                     const qLamino = getTxt('qtyLamino');
                     const qWorktop = getTxt('qtyWorktop');
                     const qHandle = getTxt('qtyHandle');
+                    const qHinge = getTxt('qtyHinge');
+                    const qDrawer = getTxt('qtyDrawer');
+
                     const sLamino = getTxt('subLamino');
                     const sWorktop = getTxt('subWorktop');
                     const sHandle = getTxt('subHandle');
+                    const sHardware = getTxt('subHardware');
                     const total = getTxt('totalPriceVal');
 
                     const tableW = 90;
-                    const tableH = 42;
+                    const tableH = 55;
                     const pdfW = 297;
                     const pdfH = 210;
-                    const startX = pdfW - tableW - 20; // Align with list but bottom
+                    const startX = pdfW - tableW - 20;
                     const startY = pdfH - tableH - 20;
 
                     // Box Background & Border (High Contrast)
-                    doc.setFillColor(255, 255, 255);
-                    doc.setDrawColor(0, 0, 0);
-                    doc.setLineWidth(0.4);
+                    doc.setFillColor(255, 255, 255); doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.4);
                     doc.rect(startX, startY, tableW, tableH, 'FD');
 
-                    // Header Header (Blue)
-                    doc.setFillColor(30, 58, 138); // Match title blue
-                    doc.rect(startX, startY, tableW, 8, 'F');
-                    doc.setTextColor(255, 255, 255);
-                    doc.setFontSize(10);
-                    doc.setFont("Roboto", "bold");
+                    // Header (Blue)
+                    doc.setFillColor(30, 58, 138); doc.rect(startX, startY, tableW, 8, 'F');
+                    doc.setTextColor(255, 255, 255); doc.setFontSize(10); doc.setFont("Roboto", "bold");
                     doc.text("CENOVÁ KALKULACE (ODHAD)", startX + 5, startY + 5.5);
 
-                    // Setup Row Settings
-                    doc.setFontSize(7);
-                    doc.setTextColor(80, 80, 80);
+                    // Headers
+                    doc.setFontSize(7); doc.setTextColor(80, 80, 80);
                     const rowStart = startY + 13;
                     doc.text("POLOŽKA", startX + 5, rowStart - 2);
                     doc.text("JEDN. CENA", startX + 30, rowStart - 2);
                     doc.text("MNOŽSTVÍ", startX + 55, rowStart - 2);
                     doc.text("CELKEM", startX + tableW - 5, rowStart - 2, { align: 'right' });
 
-                    doc.setFontSize(8);
-                    doc.setTextColor(0, 0, 0);
-                    doc.setFont("Roboto", "normal");
+                    doc.setFontSize(8); doc.setTextColor(0, 0, 0); doc.setFont("Roboto", "normal");
 
-                    const drawRow = (y, label, uprice, unit, qty, sub) => {
+                    const dRow = (y, label, uprice, unit, qty, sub) => {
                         doc.text(label, startX + 5, y);
-                        doc.text(`${uprice} Kč/${unit}`, startX + 30, y);
+                        doc.text(`${uprice} ${unit}`, startX + 30, y);
                         doc.text(qty, startX + 55, y);
+                        doc.setFont("Roboto", "bold");
                         doc.text(sub, startX + tableW - 5, y, { align: 'right' });
+                        doc.setFont("Roboto", "normal");
                     };
 
-                    drawRow(rowStart + 3, "Lamino", pLamino, "m²", qLamino, sLamino);
-                    drawRow(rowStart + 8, "Prac. deska", pWorktop, "m'", qWorktop, sWorktop);
-                    drawRow(rowStart + 13, "Úchytky", pHandle, "ks", qHandle, sHandle);
+                    dRow(rowStart, "Lamino", pLamino, "Kč/m²", qLamino, sLamino);
+                    dRow(rowStart + 6, "Pracovní deska", pWorktop, "Kč/m'", qWorktop, sWorktop);
+                    dRow(rowStart + 12, "Úchytky", pHandle, "Kč/ks", qHandle, sHandle);
+                    dRow(rowStart + 18, "Panty", pHinge, "Kč/ks", qHinge, "");
+                    dRow(rowStart + 24, "Sady výsuvů", pDrawer, "Kč/sada", qDrawer, sHardware); // sHardware matches total of both
 
                     // Divider line
-                    doc.setDrawColor(0, 100, 0);
-                    doc.setLineWidth(0.5);
-                    doc.line(startX + 5, rowStart + 16, startX + tableW - 5, rowStart + 16);
+                    doc.setDrawColor(0, 100, 0); doc.setLineWidth(0.5);
+                    doc.line(startX + 5, startY + tableH - 12, startX + tableW - 5, startY + tableH - 12);
 
-                    // Total Amount (Big & Green)
-                    doc.setFontSize(12);
-                    doc.setTextColor(0, 100, 0);
-                    doc.setFont("Roboto", "bold");
-                    doc.text("CELKEM K ÚHRADĚ:", startX + 5, rowStart + 23);
-                    doc.text(total, startX + tableW - 5, rowStart + 23, { align: 'right' });
+                    // Total Row
+                    doc.setFillColor(240, 253, 244); doc.rect(startX, startY + tableH - 10, tableW, 10, 'F');
+                    doc.setFontSize(11); doc.setFont("Roboto", "bold"); doc.setTextColor(21, 128, 61);
+                    doc.text("CELKEM K ÚHRADĚ:", startX + 5, startY + tableH - 3.5);
+                    doc.text(total, startX + tableW - 5, startY + tableH - 3.5, { align: 'right' });
 
                 } catch (err) {
                     console.error("PDF Table Generation Error:", err);
@@ -2102,7 +2535,7 @@
             const h = container.clientHeight || 600;
 
             scene = new THREE.Scene();
-            const bgCol = 0xf3f4f6; // Revert to light background
+            const bgCol = 0xf1f5f9; // Cooler, slightly darker background for better wall contrast
             scene.background = new THREE.Color(bgCol);
 
             // Environment (Fog makes it look more realistic depth)
@@ -2121,19 +2554,21 @@
             container.appendChild(renderer.domElement);
 
             // Controls
+            const wallW_init = parseFloat(document.getElementById('wallWidth').value) || 3000;
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
             controls.minDistance = 500;
-            controls.maxDistance = 6000;
-            controls.target.set(1000, 800, 0);
+            controls.maxDistance = 15000; // Increased for large walls
+            controls.target.set(wallW_init / 2, 800, 0);
 
             // Lighting - ENHANCED (Semi-Realistic)
             const ambient = new THREE.AmbientLight(0xffffff, 0.4);
             scene.add(ambient);
 
             const dirLight = new THREE.DirectionalLight(0xfff5e6, 1.1); // Warm Sun intensity up
-            dirLight.position.set(1500, 4500, 3000);
+            dirLight.name = "sunLight";
+            dirLight.position.set(wallW_init / 2 + 500, 4500, 3000);
             dirLight.castShadow = true;
             dirLight.shadow.bias = -0.0001;
             dirLight.shadow.mapSize.width = 4096; // Crisp shadows
@@ -2148,55 +2583,78 @@
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
             renderer.toneMappingExposure = 1.0;
 
-            // Walls & Floor
-            // Back Wall
-            // Back Wall
-            const wallW = parseFloat(document.getElementById('wallWidth').value) || 5000;
+            const wallW = parseFloat(document.getElementById('wallWidth').value) || 3000;
             const wallH = parseFloat(document.getElementById('ceilHeight').value) || 2600;
+            const wallD = parseFloat(document.getElementById('wallDepth').value) || 150;
             const wallColor = document.getElementById('wallColor').value || "#f3f4f6";
 
-            // Calculate kitchen TRUE center
-            const prepared = getPreparedModules();
-            let minX = Infinity, maxX = -Infinity;
-            if (prepared.length > 0) {
-                prepared.forEach(m => {
-                    if (m.x < minX) minX = m.x;
-                    if (m.x + m.width > maxX) maxX = m.x + m.width;
-                });
-            } else {
-                minX = 0; maxX = 2000;
-            }
-            const centerX = (minX + maxX) / 2;
+            const material = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.8, metalness: 0.1 });
 
-            const geometry = new THREE.PlaneGeometry(wallW, wallH);
-            // Use BASIC material to ensure color is exactly what user wants, unaffected by light/shadow
-            const material = new THREE.MeshBasicMaterial({ color: wallColor, side: THREE.DoubleSide });
+            // Back Wall
+            const geometry = new THREE.BoxGeometry(wallW, wallH, wallD);
             const backWall = new THREE.Mesh(geometry, material);
-            backWall.name = "backWall"; // ID for updates
-            backWall.position.set(centerX, wallH / 2, -20); // Centered on kitchen content
-            // backWall.receiveShadow = false; // Not needed for BasicMaterial
+            backWall.name = "backWall";
+            backWall.position.set(wallW / 2, wallH / 2, -wallD / 2);
+            backWall.receiveShadow = true;
             scene.add(backWall);
 
-            // Floor - Wood Texture
-            const floorGeo = new THREE.PlaneGeometry(10000, 10000);
+            // Floor - Dynamic size and position
+            const floorSize = Math.max(10000, wallW + 5000);
+            const floorGeo = new THREE.PlaneGeometry(floorSize, 10000);
             const floorTex = getTexture('floor_wood');
             floorTex.wrapS = THREE.RepeatWrapping;
             floorTex.wrapT = THREE.RepeatWrapping;
-            floorTex.repeat.set(20, 20);
+            floorTex.repeat.set(floorSize / 500, 20);
             const floorMat = new THREE.MeshStandardMaterial({
                 map: floorTex,
                 roughness: 0.6,
                 metalness: 0.05
             });
             const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.name = "floor";
             floor.rotation.x = -Math.PI / 2;
-            floor.position.y = 0;
+            floor.position.set(floorSize / 2 - 2000, 0, 5000 - 1000); // Shifted so it starts near X=0
             floor.receiveShadow = true;
             scene.add(floor);
 
             // Render loop
             animate3D();
 
+            renderer.domElement.addEventListener('click', onCanvas3DClick);
+        }
+
+        function onCanvas3DClick(event) {
+            if (currentView !== '3d' || !scene || !camera) return;
+
+            // Relative position
+            const container = document.getElementById('canvas3d');
+            const rect = container.getBoundingClientRect();
+            const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera({ x, y }, camera);
+
+            const kitchenGroup = scene.getObjectByName('kitchenGroup');
+            if (!kitchenGroup) return;
+
+            // We check kids of the group
+            const intersects = raycaster.intersectObjects(kitchenGroup.children, true);
+            if (intersects.length > 0) {
+                // Find the modGroup by traversing up
+                let current = intersects[0].object;
+                while (current && (!current.userData || !current.userData.moduleId)) {
+                    current = current.parent;
+                }
+
+                if (current && current.userData.moduleId) {
+                    selectModule(current.userData.moduleId, event);
+                }
+            } else {
+                deselectAll();
+                draw();
+                if (currentView === '3d') draw3D();
+            }
         }
 
         function animate3D() {
@@ -2213,33 +2671,6 @@
                 // Also update wall color
                 const backWall = scene.getObjectByName('backWall');
                 if (backWall) backWall.material.color.set(document.getElementById('wallColor').value);
-            }
-        }
-
-        function update3DWall() {
-            if (currentView !== '3d') return;
-            const wallW = parseFloat(document.getElementById('wallWidth').value) || 5000;
-            const wallH = parseFloat(document.getElementById('ceilHeight').value) || 2600;
-            const wallColor = document.getElementById('wallColor').value || "#f3f4f6";
-
-            const backWall = scene.getObjectByName('backWall');
-            if (backWall) {
-                backWall.geometry.dispose();
-                backWall.geometry = new THREE.PlaneGeometry(wallW, wallH);
-                backWall.material.color.set(wallColor);
-
-                // Recenter
-                // Need prepared modules range? Or just center at 1000?
-                // Let's use simple centering for now or keep existing logic.
-                // Ideally we call init3D() partial, but resizing geometry is enough.
-                // Center X: We need the range. simple fix:
-                backWall.position.set(wallW / 2, wallH / 2, -20);
-                // If we want it centered on modules, we need that logic. 
-                // For now, aligning left edge to 0 is safer if wallW represents room width starting from Left.
-                // Previous logic was (minX+maxX)/2. 
-                // Let's just redraw 3D entirely to be safe:
-                init3D();
-                draw3D();
             }
         }
 
@@ -2345,8 +2776,18 @@
 
                 // Group to hold module
                 const modGroup = new THREE.Group();
+                modGroup.userData = { moduleId: item.id };
                 modGroup.position.set(item.x, 0, 0);
                 group.add(modGroup);
+
+                // Selection Highlight (3D Box)
+                if (selectedModuleId === item.id) {
+                    const boxGeo = new THREE.BoxGeometry(w + 10, h + 20 + item.elevation, d + 10);
+                    const wireframe = new THREE.EdgesGeometry(boxGeo);
+                    const line = new THREE.LineSegments(wireframe, new THREE.LineBasicMaterial({ color: 0x3b82f6, linewidth: 2 }));
+                    line.position.set(w / 2, (h + item.elevation) / 2 - item.elevation / 2, d / 2);
+                    modGroup.add(line);
+                }
 
                 // --- REFRACTORED GEOMETRY GENERATION ---
                 // Separate Carcass (Korpus) and Fronts (Dvířka/Čela)
@@ -2563,7 +3004,7 @@
                         if (idx === 1 && item.hinge2) segHinge = item.hinge2;
                         if (idx === 2 && item.hinge3) segHinge = item.hinge3;
 
-                        if (segHinge === 'none') return; // Skip rendering front if no hinge (open)
+                        if (segHinge === 'none' || segHinge === 'nika') return; // Skip rendering front if no hinge (open)
 
                         const pg = new THREE.BoxGeometry(w - 2, visH, frontThick);
                         const pm = new THREE.Mesh(pg, cabinetMat);
@@ -2637,12 +3078,35 @@
                 // Drawer handles if drawer unit - REMOVED (Handled in Fronts logic above)
 
 
-                // Plinth (Sokl)
+                // Plinth (Sokl) or Legs (Nožičky)
                 if (item.type !== 'wall' && item.elevation > 0) {
-                    const pGeo = new THREE.BoxGeometry(w - 10, item.elevation, d - 40);
-                    const pMesh = new THREE.Mesh(pGeo, plinthMat);
-                    pMesh.position.set(w / 2, item.elevation / 2, (d - 40) / 2 + 20); // Recessed
-                    modGroup.add(pMesh);
+                    if (item.showPlinth) {
+                        const pGeo = new THREE.BoxGeometry(w - 10, item.elevation, d - 40);
+                        const pMesh = new THREE.Mesh(pGeo, plinthMat);
+                        pMesh.position.set(w / 2, item.elevation / 2, (d - 40) / 2 + 20); // Recessed
+                        modGroup.add(pMesh);
+                    } else {
+                        // Render 4 Legs
+                        const legRadius = 15;
+                        const legHeight = item.elevation;
+                        const legGeo = new THREE.CylinderGeometry(legRadius, legRadius, legHeight, 16);
+                        const legMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
+                        const recess = 50;
+
+                        const positions = [
+                            [recess, legHeight / 2, recess],
+                            [w - recess, legHeight / 2, recess],
+                            [recess, legHeight / 2, d - recess],
+                            [w - recess, legHeight / 2, d - recess]
+                        ];
+
+                        positions.forEach(pos => {
+                            const leg = new THREE.Mesh(legGeo, legMat);
+                            leg.position.set(pos[0], pos[1], pos[2]);
+                            leg.castShadow = true;
+                            modGroup.add(leg);
+                        });
+                    }
                 }
 
                 // Worktop with CUTOUT
@@ -2875,6 +3339,87 @@
             scene.add(group);
         }
 
+
+        function closeARModal() {
+            document.getElementById('arModal').classList.add('hidden');
+            const viewer = document.getElementById('arViewer');
+            if (viewer.src) {
+                URL.revokeObjectURL(viewer.src);
+                viewer.src = '';
+            }
+        }
+
+        async function exportToAR() {
+            if (!scene) return;
+            const kitchenGroup = scene.getObjectByName('kitchenGroup');
+            if (!kitchenGroup) {
+                alert("Nejdříve na výkres přidejte nějaké skříňky.");
+                return;
+            }
+
+            document.getElementById('arModal').classList.remove('hidden');
+            document.getElementById('arLoading').classList.remove('hidden');
+
+            // Wait a tiny bit for the UI to update
+            await new Promise(r => setTimeout(r, 100));
+
+            try {
+                // Generate QR Code for Mobile (using external API)
+                const currentUrl = window.location.href;
+                const qrImg = document.getElementById('arQRCodeImg');
+                if (qrImg) {
+                    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(currentUrl)}`;
+                }
+
+                const exporter = new THREE.GLTFExporter();
+
+                // Clone the group to avoid modifying the scene
+                const clone = kitchenGroup.clone();
+
+                // Convert mm to meters for AR (1:1 scale)
+                clone.scale.set(0.001, 0.001, 0.001);
+
+                // Process materials for export (strip complex stuff that might fail)
+                clone.traverse(child => {
+                    if (child.isMesh && child.material) {
+                        // Create a simple StandardMaterial for export if it's complex
+                        // This ensures textures (which are canvas-based here) don't break the export
+                        const oldMat = Array.isArray(child.material) ? child.material[0] : child.material;
+                        const newMat = new THREE.MeshStandardMaterial({
+                            color: oldMat.color,
+                            roughness: oldMat.roughness || 0.8,
+                            metalness: oldMat.metalness || 0.0,
+                            transparent: oldMat.transparent,
+                            opacity: oldMat.opacity
+                        });
+                        child.material = newMat;
+                    }
+                });
+
+                exporter.parse(clone, function (result) {
+                    let blob;
+                    if (result instanceof ArrayBuffer) {
+                        blob = new Blob([result], { type: 'application/octet-stream' });
+                    } else {
+                        const output = JSON.stringify(result);
+                        blob = new Blob([output], { type: 'text/plain' });
+                    }
+
+                    const url = URL.createObjectURL(blob);
+                    const viewer = document.getElementById('arViewer');
+                    viewer.src = url;
+
+                    document.getElementById('arLoading').classList.add('hidden');
+                }, {
+                    binary: true
+                });
+            } catch (err) {
+                console.error("AR Export failed:", err);
+                alert("Chyba při generování AR modelu: " + err.message);
+                closeARModal();
+            }
+        }
+
         // Helper
         function hp_base_y(h) { return h - 50; }
 
@@ -2919,6 +3464,73 @@
             }
         }
     </script>
+    <!-- AR PREVIEW MODAL -->
+    <div id="arModal"
+        class="fixed inset-0 z-[100] hidden bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-4xl h-[80vh] flex flex-col relative overflow-hidden shadow-2xl">
+            <!-- Header -->
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-slate-50">
+                <div>
+                    <h3 class="font-black text-blue-900 uppercase text-sm tracking-tight flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-600" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
+                        </svg>
+                        AR Mobilní Náhled
+                    </h3>
+                    <p class="text-[10px] text-gray-500 font-bold uppercase mt-0.5">Měřítko 1:1 • Prohlížejte ve svém
+                        prostoru</p>
+                </div>
+                <button onclick="closeARModal()" class="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Viewer -->
+            <div class="flex-1 bg-gray-100 relative">
+                <model-viewer id="arViewer" ar ar-modes="webxr scene-viewer quick-look" camera-controls
+                    touch-action="pan-y" shadow-intensity="1" style="width: 100%; height: 100%;"
+                    alt="3D model kuchyně"></model-viewer>
+
+                <!-- Loading Overlay -->
+                <div id="arLoading"
+                    class="absolute inset-0 flex flex-col items-center justify-center bg-white/50 backdrop-blur-[2px] z-10 hidden">
+                    <div class="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin">
+                    </div>
+                    <span class="mt-4 text-xs font-black text-purple-800 uppercase tracking-widest">Generuji AR
+                        model...</span>
+                </div>
+            </div>
+
+            <!-- Footer / Instructions -->
+            <div class="p-6 bg-white border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div class="flex gap-4 items-center">
+                    <div
+                        class="w-20 h-20 bg-white p-1 border-2 border-purple-100 rounded-lg shadow-inner shrink-0 overflow-hidden flex items-center justify-center">
+                        <img id="arQRCodeImg" src="" alt="QR Code" class="w-full h-full object-contain">
+                    </div>
+                    <div>
+                        <h4 class="text-[11px] font-black text-gray-800 uppercase">Naskenujte QR kód</h4>
+                        <p class="text-[10px] text-gray-400 font-medium leading-relaxed">Namiřte fotoaparát mobilu na
+                            tento kód. Stránka se otevře v mobilu a vy uvidíte tuto kuchyni ve své místnosti.</p>
+                        <p class="text-[8px] text-purple-400 font-bold uppercase mt-1 italic">Pozn: Funguje nejlépe,
+                            když je aplikace dostupná online.</p>
+                    </div>
+                </div>
+                <div class="flex items-center justify-end">
+                    <button onclick="closeARModal()"
+                        class="px-8 py-3 bg-gray-900 text-white text-xs font-black uppercase rounded-xl hover:bg-black transition-all shadow-lg active:scale-95">Hotovo,
+                        zavřit</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
+
 
 </html>
