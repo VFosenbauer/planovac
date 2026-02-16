@@ -3387,6 +3387,10 @@
         }
 
         async function exportToAR() {
+            // Ensure 3D is initialized and drawn even if we haven't switched to 3D view yet
+            if (typeof init3D === 'function') init3D();
+            if (typeof draw3D === 'function') draw3D();
+
             if (!scene) return;
             const kitchenGroup = scene.getObjectByName('kitchenGroup');
             if (!kitchenGroup) {
