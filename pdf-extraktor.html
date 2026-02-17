@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TPV Materialextraktion – Montageplan Analyzer</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            50: '#e7eaf0',
+                            100: '#c3c9d9',
+                            200: '#9ba5bf',
+                            300: '#7381a5',
+                            400: '#556791',
+                            500: '#374d7e',
+                            600: '#314576',
+                            700: '#293b6b',
+                            800: '#223261',
+                            900: '#14214e',
+                            950: '#0a1128',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- React -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+
+    <!-- SheetJS (xlsx) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <!-- Lucide Icons (standalone) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Fonts -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background: #0a1128;
+            color: #e2e8f0;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #14214e; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #374d7e; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #556791; }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(55, 77, 126, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(55, 77, 126, 0.6); }
+        }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+        .animate-slide-up { animation: slideUp 0.5s ease-out; }
+        .pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+        /* Drag states */
+        .drop-zone-active {
+            border-color: #556791 !important;
+            background: rgba(55, 77, 126, 0.15) !important;
+        }
+
+        /* Editable cell */
+        .editable-cell {
+            cursor: text;
+            transition: background 0.15s;
+        }
+        .editable-cell:hover { background: rgba(55, 77, 126, 0.3); }
+        .editable-cell:focus {
+            outline: 2px solid #556791;
+            outline-offset: -2px;
+            background: rgba(55, 77, 126, 0.2);
+        }
+
+        /* Progress bar animation */
+        .progress-bar-fill {
+            transition: width 0.5s ease-in-out;
+            background: linear-gradient(90deg, #374d7e, #556791, #7381a5);
+            background-size: 200% 100%;
+            animation: shimmer 2s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+        // ─── Icon component using Lucide standalone ───
+        function Icon({ name, size = 20, className = '' }) {
+            const ref = useRef(null);
+            useEffect(() => {
+                if (ref.current && lucide.icons[name]) {
+                    const [tag, attrs, children] = lucide.icons[name];
+                    const svg = document.createElementNS('http://www.w3.org/2000/svg', tag);
+                    Object.entries({ ...attrs, width: size, height: size, class: className }).forEach(
+                        ([k, v]) => svg.setAttribute(k === 'class' ? 'class' : k, v)
+                    );
+                    children.forEach(([ctag, cattrs]) => {
+                        const el = document.createElementNS('http://www.w3.org/2000/svg', ctag);
+                        Object.entries(cattrs).forEach(([k, v]) => el.setAttribute(k, v));
+                        svg.appendChild(el);
+                    });
+                    ref.current.innerHTML = '';
+                    ref.current.appendChild(svg);
+                }
+            }, [name, size, className]);
+            return <span ref={ref} className="inline-flex items-center" />;
+        }
+
+        // ─── PDF Text Extraction ───
+        async function extractTextFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            const pages = [];
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                const text = content.items.map(item => item.str).join(' ');
+                pages.push(text);
+            }
+            return { fullText: pages.join('\n'), pages, numPages: pdf.numPages };
+        }
+
+        // ─── Extraction Logic ───
+        function extractModuleNumber(text) {
+            // Pattern: digits_Mdigits or similar module identifiers
+            const patterns = [
+                /(\d{3,5}[_\-]M\d{2,4})/gi,
+                /Modul[:\s]*([A-Z0-9_\-]+)/gi,
+                /Baugruppe[:\s]*([A-Z0-9_\-]+)/gi,
+                /Zeichnungsnr[.:\s]*([A-Z0-9_\-]+)/gi,
+                /Zeichnung[:\s]*([A-Z0-9_\-]+)/gi,
+                /(\d{4,5}[_\-][A-Z]\d{2,4})/gi,
+            ];
+            for (const pattern of patterns) {
+                const match = pattern.exec(text);
+                if (match) return match[1];
+            }
+            return null;
+        }
+
+        function extractKonstruktionsbauteile(text) {
+            const parts = [];
+            const lines = text.split(/[\n\r]+/);
+
+            // Regex patterns for construction parts
+            // Look for patterns like: Name/Description ... Stk/Stück/pcs ... number
+            const partPatterns = [
+                // "Name     Stk   12" or "Name     St   12"
+                /([A-Za-zÄäÖöÜüß\s\-_.]+?)\s+(Stk|St|Stück|pcs|mm|m|kg|lfm)\s+(\d+[.,]?\d*)/gi,
+                // Tabular: position number, name, unit, quantity
+                /(\d+)\s+([A-Za-zÄäÖöÜüß\s\-_.]{3,}?)\s+(Stk|St|Stück|pcs|mm|m|kg|lfm)\s+(\d+[.,]?\d*)/gi,
+            ];
+
+            const fullText = lines.join('\n');
+
+            // Try pattern with position number first
+            let regex = /(\d{1,3})\s+([A-Za-zÄäÖöÜüß][A-Za-zÄäÖöÜüß\s\-_.]{2,}?)\s+(Stk|St|Stück|pcs|mm|m|kg|lfm)\s+(\d+[.,]?\d*)/gi;
+            let match;
+            while ((match = regex.exec(fullText)) !== null) {
+                const name = match[2].trim();
+                if (name.length > 2 && name.length < 80) {
+                    parts.push({
+                        name: name,
+                        unit: match[3],
+                        quantity: parseFloat(match[4].replace(',', '.')),
+                    });
+                }
+            }
+
+            // If nothing found, try simpler pattern
+            if (parts.length === 0) {
+                regex = /([A-Za-zÄäÖöÜüß][A-Za-zÄäÖöÜüß\s\-_.]{3,}?)\s+(Stk|St|Stück|pcs|mm|m|kg|lfm)\s+(\d+[.,]?\d*)/gi;
+                while ((match = regex.exec(fullText)) !== null) {
+                    const name = match[1].trim();
+                    if (name.length > 2 && name.length < 80) {
+                        parts.push({
+                            name: name,
+                            unit: match[2],
+                            quantity: parseFloat(match[3].replace(',', '.')),
+                        });
+                    }
+                }
+            }
+
+            return parts;
+        }
+
+        function extractVerbindungsmaterial(text) {
+            const fasteners = [];
+            const fullText = text;
+
+            // Screw patterns: M8x40, Ø8.0x40, ∅8x40, 8.0 x 40, etc.
+            const screwPatterns = [
+                // M8x40 mm  Stk  12
+                /([Mm]\d+[.,]?\d*\s*[xX×]\s*\d+[.,]?\d*)\s*(?:mm)?\s*(Stk|St|Stück|pcs)?\s*(\d+)/gi,
+                // Ø8.0 x 40 mm or ∅8x40
+                /([ØÆ∅φϕ]\s*\d+[.,]?\d*\s*[xX×]\s*\d+[.,]?\d*)\s*(?:mm)?\s*(Stk|St|Stück|pcs)?\s*(\d+)/gi,
+                // Schraube/Bolzen/Mutter + dimensions
+                /((?:Schraube|Bolzen|Mutter|Unterlegscheibe|Scheibe|Sechskant|Zylinder|Senk|Stift)[A-Za-zÄäÖöÜüß\-]*)\s+([Mm\dØÆ∅φϕ][0-9.,]*\s*[xX×]\s*\d+[.,]?\d*)\s*(?:mm)?\s*(Stk|St|Stück|pcs)?\s*(\d+)/gi,
+                // Generic: numbers x numbers with "Stk" and quantity
+                /(\d+[.,]?\d*\s*[xX×]\s*\d+[.,]?\d*)\s*(?:mm)\s+(Stk|St|Stück|pcs)\s+(\d+)/gi,
+            ];
+
+            // Pattern 1: M-type screws
+            let regex = /([Mm]\d+[.,]?\d*\s*[xX×]\s*\d+[.,]?\d*)\s*(?:mm)?\s*(?:Stk|St|Stück|pcs)?\s+(\d+)/gi;
+            let match;
+            while ((match = regex.exec(fullText)) !== null) {
+                const qty = parseInt(match[2]);
+                if (qty > 0) {
+                    fasteners.push({
+                        name: 'Verbindungselement ' + match[1].trim(),
+                        unit: 'Stk',
+                        quantity: qty,
+                    });
+                }
+            }
+
+            // Pattern 2: Ø-type
+            regex = /([ØÆ∅φϕ]\s*\d+[.,]?\d*\s*[xX×]\s*\d+[.,]?\d*)\s*(?:mm)?\s*(?:Stk|St|Stück|pcs)?\s+(\d+)/gi;
+            while ((match = regex.exec(fullText)) !== null) {
+                const qty = parseInt(match[2]);
+                if (qty > 0) {
+                    fasteners.push({
+                        name: 'Verbindungselement ' + match[1].trim(),
+                        unit: 'Stk',
+                        quantity: qty,
+                    });
+                }
+            }
+
+            // Pattern 3: Named fasteners
+            regex = /((?:Schraube|Bolzen|Mutter|Unterlegscheibe|Scheibe|Sechskant|Zylinder|Senk|Stift|Niet|Dübel|Nagel|Klammer)[A-Za-zÄäÖöÜüß\-]*)\s+([^\s]+(?:\s*[xX×]\s*[^\s]+)?)\s*(?:mm)?\s*(?:Stk|St|Stück|pcs)?\s+(\d+)/gi;
+            while ((match = regex.exec(fullText)) !== null) {
+                const qty = parseInt(match[3]);
+                if (qty > 0) {
+                    fasteners.push({
+                        name: match[1].trim() + ' ' + match[2].trim(),
+                        unit: 'Stk',
+                        quantity: qty,
+                    });
+                }
+            }
+
+            return fasteners;
+        }
+
+        function analyzeDocument(text, fileName) {
+            const moduleNumber = extractModuleNumber(text) || fileName.replace(/\.pdf$/i, '').replace(/\s+/g, '_');
+            const konstruktionsbauteile = extractKonstruktionsbauteile(text);
+            const verbindungsmaterial = extractVerbindungsmaterial(text);
+            return { moduleNumber, konstruktionsbauteile, verbindungsmaterial };
+        }
+
+        // ─── Main App ───
+        function App() {
+            const [files, setFiles] = useState([]);
+            const [results, setResults] = useState([]);
+            const [processing, setProcessing] = useState(false);
+            const [progress, setProgress] = useState({ current: 0, total: 0, fileName: '' });
+            const [activeTab, setActiveTab] = useState('upload'); // upload | results
+            const [dragOver, setDragOver] = useState(false);
+            const fileInputRef = useRef(null);
+
+            const handleFiles = useCallback((newFiles) => {
+                const pdfFiles = Array.from(newFiles).filter(f =>
+                    f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf')
+                );
+                if (pdfFiles.length > 0) {
+                    setFiles(prev => [...prev, ...pdfFiles]);
+                }
+            }, []);
+
+            const handleDrop = useCallback((e) => {
+                e.preventDefault();
+                setDragOver(false);
+                handleFiles(e.dataTransfer.files);
+            }, [handleFiles]);
+
+            const removeFile = useCallback((index) => {
+                setFiles(prev => prev.filter((_, i) => i !== index));
+            }, []);
+
+            const processFiles = useCallback(async () => {
+                if (files.length === 0) return;
+                setProcessing(true);
+                setProgress({ current: 0, total: files.length, fileName: '' });
+                const allResults = [];
+
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    setProgress({ current: i, total: files.length, fileName: file.name });
+
+                    try {
+                        const { fullText } = await extractTextFromPDF(file);
+                        const analysis = analyzeDocument(fullText, file.name);
+
+                        const rows = [];
+
+                        // Add Konstruktionsbauteile
+                        analysis.konstruktionsbauteile.forEach(part => {
+                            rows.push({
+                                id: crypto.randomUUID(),
+                                moduleNumber: analysis.moduleNumber,
+                                material: part.name,
+                                unit: part.unit,
+                                quantity: part.quantity,
+                                type: 'Konstruktionsbauteil',
+                                source: file.name,
+                            });
+                        });
+
+                        // Add Verbindungsmaterial
+                        analysis.verbindungsmaterial.forEach(part => {
+                            rows.push({
+                                id: crypto.randomUUID(),
+                                moduleNumber: analysis.moduleNumber,
+                                material: part.name,
+                                unit: part.unit,
+                                quantity: part.quantity,
+                                type: 'Verbindungsmaterial',
+                                source: file.name,
+                            });
+                        });
+
+                        // If nothing was extracted, add a placeholder row
+                        if (rows.length === 0) {
+                            rows.push({
+                                id: crypto.randomUUID(),
+                                moduleNumber: analysis.moduleNumber,
+                                material: '(Keine Daten extrahiert – bitte manuell eingeben)',
+                                unit: 'Stk',
+                                quantity: 0,
+                                type: 'Manuell',
+                                source: file.name,
+                            });
+                        }
+
+                        allResults.push(...rows);
+                    } catch (err) {
+                        console.error('Error processing', file.name, err);
+                        allResults.push({
+                            id: crypto.randomUUID(),
+                            moduleNumber: file.name.replace(/\.pdf$/i, ''),
+                            material: `Fehler: ${err.message}`,
+                            unit: '-',
+                            quantity: 0,
+                            type: 'Fehler',
+                            source: file.name,
+                        });
+                    }
+                }
+
+                setProgress({ current: files.length, total: files.length, fileName: 'Fertig!' });
+                setResults(prev => [...prev, ...allResults]);
+                setProcessing(false);
+                setActiveTab('results');
+            }, [files]);
+
+            const updateRow = useCallback((id, field, value) => {
+                setResults(prev => prev.map(row =>
+                    row.id === id ? { ...row, [field]: field === 'quantity' ? parseFloat(value) || 0 : value } : row
+                ));
+            }, []);
+
+            const deleteRow = useCallback((id) => {
+                setResults(prev => prev.filter(row => row.id !== id));
+            }, []);
+
+            const addRow = useCallback(() => {
+                setResults(prev => [...prev, {
+                    id: crypto.randomUUID(),
+                    moduleNumber: '',
+                    material: '',
+                    unit: 'Stk',
+                    quantity: 0,
+                    type: 'Manuell',
+                    source: 'Manuell hinzugefügt',
+                }]);
+            }, []);
+
+            const exportToXLSX = useCallback(() => {
+                if (results.length === 0) return;
+                const data = results.map(row => ({
+                    'Modulnummer': row.moduleNumber,
+                    'Material': row.material,
+                    'Einheit': row.unit,
+                    'Menge': row.quantity,
+                    'Typ': row.type,
+                    'Quelle': row.source,
+                }));
+                const ws = XLSX.utils.json_to_sheet(data);
+                // Column widths
+                ws['!cols'] = [
+                    { wch: 18 }, { wch: 45 }, { wch: 10 }, { wch: 10 }, { wch: 22 }, { wch: 30 }
+                ];
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Materialliste');
+                XLSX.writeFile(wb, `Materialliste_TPV_${new Date().toISOString().slice(0,10)}.xlsx`);
+            }, [results]);
+
+            const clearAll = useCallback(() => {
+                setFiles([]);
+                setResults([]);
+                setActiveTab('upload');
+                setProgress({ current: 0, total: 0, fileName: '' });
+            }, []);
+
+            const stats = useMemo(() => {
+                const modules = new Set(results.map(r => r.moduleNumber)).size;
+                const totalParts = results.length;
+                const konstruktion = results.filter(r => r.type === 'Konstruktionsbauteil').length;
+                const verbindung = results.filter(r => r.type === 'Verbindungsmaterial').length;
+                return { modules, totalParts, konstruktion, verbindung };
+            }, [results]);
+
+            // ─── Render ───
+            return (
+                <div className="min-h-screen bg-navy-950">
+                    {/* Header */}
+                    <header className="bg-navy-900 border-b border-navy-700 shadow-lg">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-navy-700 flex items-center justify-center pulse-glow">
+                                        <Icon name="factory" size={26} className="text-blue-300" />
+                                    </div>
+                                    <div>
+                                        <h1 className="text-xl font-bold text-white tracking-tight">
+                                            TPV Materialextraktion
+                                        </h1>
+                                        <p className="text-navy-300 text-sm">
+                                            Montageplan-Analyzer · Konstruktionsbauteile & Verbindungsmaterial
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    {results.length > 0 && (
+                                        <button
+                                            onClick={exportToXLSX}
+                                            className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-600 text-white rounded-lg transition-colors font-medium text-sm"
+                                        >
+                                            <Icon name="download" size={16} />
+                                            XLSX Export
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={clearAll}
+                                        className="flex items-center gap-2 px-4 py-2 bg-navy-700 hover:bg-navy-600 text-navy-200 rounded-lg transition-colors text-sm"
+                                    >
+                                        <Icon name="rotate-ccw" size={16} />
+                                        Zurücksetzen
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Tab Navigation */}
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+                        <div className="flex gap-1 bg-navy-900 rounded-xl p-1 w-fit">
+                            <button
+                                onClick={() => setActiveTab('upload')}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                    activeTab === 'upload'
+                                        ? 'bg-navy-700 text-white shadow-md'
+                                        : 'text-navy-300 hover:text-white hover:bg-navy-800'
+                                }`}
+                            >
+                                <Icon name="upload" size={16} />
+                                Dateien hochladen
+                                {files.length > 0 && (
+                                    <span className="ml-1 px-2 py-0.5 rounded-full bg-navy-500 text-xs">
+                                        {files.length}
+                                    </span>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('results')}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                                    activeTab === 'results'
+                                        ? 'bg-navy-700 text-white shadow-md'
+                                        : 'text-navy-300 hover:text-white hover:bg-navy-800'
+                                }`}
+                            >
+                                <Icon name="table" size={16} />
+                                Ergebnisse
+                                {results.length > 0 && (
+                                    <span className="ml-1 px-2 py-0.5 rounded-full bg-green-700 text-xs">
+                                        {results.length}
+                                    </span>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                        {/* ─── Upload Tab ─── */}
+                        {activeTab === 'upload' && (
+                            <div className="animate-fade-in space-y-6">
+                                {/* Drop Zone */}
+                                <div
+                                    className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all cursor-pointer ${
+                                        dragOver
+                                            ? 'border-blue-400 bg-navy-800/60'
+                                            : 'border-navy-600 bg-navy-900/50 hover:border-navy-500 hover:bg-navy-900/70'
+                                    }`}
+                                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                                    onDragLeave={() => setDragOver(false)}
+                                    onDrop={handleDrop}
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept=".pdf"
+                                        multiple
+                                        className="hidden"
+                                        onChange={(e) => handleFiles(e.target.files)}
+                                    />
+                                    <div className="flex flex-col items-center gap-4">
+                                        <div className="w-20 h-20 rounded-2xl bg-navy-800 flex items-center justify-center">
+                                            <Icon name="file-up" size={36} className="text-navy-300" />
+                                        </div>
+                                        <div>
+                                            <p className="text-lg font-semibold text-white">
+                                                PDF-Montagepläne hier ablegen
+                                            </p>
+                                            <p className="text-navy-400 mt-1">
+                                                oder klicken zum Durchsuchen · Mehrfachauswahl möglich
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-6 text-navy-400 text-xs mt-2">
+                                            <span className="flex items-center gap-1">
+                                                <Icon name="file-text" size={14} /> PDF-Format
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <Icon name="layers" size={14} /> Mehrere Dateien
+                                            </span>
+                                            <span className="flex items-center gap-1">
+                                                <Icon name="shield-check" size={14} /> Lokale Verarbeitung
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* File List */}
+                                {files.length > 0 && (
+                                    <div className="bg-navy-900 rounded-xl border border-navy-700 overflow-hidden">
+                                        <div className="px-5 py-3 border-b border-navy-700 flex items-center justify-between">
+                                            <h3 className="font-semibold text-white flex items-center gap-2">
+                                                <Icon name="files" size={18} />
+                                                Hochgeladene Dateien ({files.length})
+                                            </h3>
+                                            <button
+                                                onClick={processFiles}
+                                                disabled={processing}
+                                                className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                                    processing
+                                                        ? 'bg-navy-700 text-navy-400 cursor-not-allowed'
+                                                        : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg hover:shadow-xl'
+                                                }`}
+                                            >
+                                                {processing ? (
+                                                    <>
+                                                        <Icon name="loader" size={16} className="animate-spin" />
+                                                        Verarbeitung...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Icon name="scan-line" size={16} />
+                                                        Analyse starten
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+
+                                        {/* Progress Bar */}
+                                        {processing && (
+                                            <div className="px-5 py-3 bg-navy-800/50 border-b border-navy-700">
+                                                <div className="flex items-center justify-between text-sm mb-2">
+                                                    <span className="text-navy-300">
+                                                        Verarbeite: <span className="text-white font-mono">{progress.fileName}</span>
+                                                    </span>
+                                                    <span className="text-navy-300 font-mono">
+                                                        {progress.current} / {progress.total}
+                                                    </span>
+                                                </div>
+                                                <div className="w-full h-2.5 bg-navy-700 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full progress-bar-fill rounded-full"
+                                                        style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="divide-y divide-navy-800">
+                                            {files.map((file, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="flex items-center justify-between px-5 py-3 hover:bg-navy-800/50 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-9 h-9 rounded-lg bg-red-900/40 flex items-center justify-center">
+                                                            <Icon name="file-text" size={18} className="text-red-400" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-white text-sm font-medium">{file.name}</p>
+                                                            <p className="text-navy-400 text-xs">
+                                                                {(file.size / 1024).toFixed(1)} KB
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => removeFile(index)}
+                                                        className="p-1.5 rounded-lg hover:bg-red-900/40 text-navy-400 hover:text-red-400 transition-colors"
+                                                    >
+                                                        <Icon name="x" size={16} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Info Cards */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <InfoCard
+                                        icon="puzzle"
+                                        title="Konstruktionsbauteile"
+                                        description="Extraktion von Bauteilen mit Name, Einheit und Menge aus der Stückliste."
+                                    />
+                                    <InfoCard
+                                        icon="wrench"
+                                        title="Verbindungsmaterial"
+                                        description="Schrauben, Bolzen, Muttern – Abmessungen und Mengen aus der Schraubenmatrix."
+                                    />
+                                    <InfoCard
+                                        icon="table"
+                                        title="XLSX Export"
+                                        description="Editierbare Vorschau und Download als Excel-Datei für Ihre Stückliste."
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ─── Results Tab ─── */}
+                        {activeTab === 'results' && (
+                            <div className="animate-fade-in space-y-6">
+                                {/* Stats */}
+                                {results.length > 0 && (
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        <StatCard icon="box" label="Module" value={stats.modules} color="blue" />
+                                        <StatCard icon="list" label="Gesamtpositionen" value={stats.totalParts} color="green" />
+                                        <StatCard icon="puzzle" label="Konstruktionsbauteile" value={stats.konstruktion} color="purple" />
+                                        <StatCard icon="wrench" label="Verbindungsmaterial" value={stats.verbindung} color="orange" />
+                                    </div>
+                                )}
+
+                                {/* Table */}
+                                {results.length > 0 ? (
+                                    <div className="bg-navy-900 rounded-xl border border-navy-700 overflow-hidden">
+                                        <div className="px-5 py-3 border-b border-navy-700 flex items-center justify-between">
+                                            <h3 className="font-semibold text-white flex items-center gap-2">
+                                                <Icon name="table" size={18} />
+                                                Materialliste
+                                                <span className="text-navy-400 text-sm font-normal ml-2">
+                                                    (Klicken zum Bearbeiten)
+                                                </span>
+                                            </h3>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={addRow}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-navy-700 hover:bg-navy-600 text-navy-200 rounded-lg transition-colors text-sm"
+                                                >
+                                                    <Icon name="plus" size={14} />
+                                                    Zeile hinzufügen
+                                                </button>
+                                                <button
+                                                    onClick={exportToXLSX}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded-lg transition-colors text-sm"
+                                                >
+                                                    <Icon name="download" size={14} />
+                                                    XLSX
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="bg-navy-800 text-navy-300">
+                                                        <th className="px-4 py-3 text-left font-semibold w-10">#</th>
+                                                        <th className="px-4 py-3 text-left font-semibold">Modulnummer</th>
+                                                        <th className="px-4 py-3 text-left font-semibold">Material</th>
+                                                        <th className="px-4 py-3 text-left font-semibold w-24">Einheit</th>
+                                                        <th className="px-4 py-3 text-right font-semibold w-24">Menge</th>
+                                                        <th className="px-4 py-3 text-left font-semibold">Typ</th>
+                                                        <th className="px-4 py-3 text-center font-semibold w-16">Akt.</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-navy-800">
+                                                    {results.map((row, index) => (
+                                                        <tr
+                                                            key={row.id}
+                                                            className={`hover:bg-navy-800/60 transition-colors ${
+                                                                row.type === 'Fehler' ? 'bg-red-900/20' : ''
+                                                            }`}
+                                                        >
+                                                            <td className="px-4 py-2.5 text-navy-500 font-mono text-xs">
+                                                                {index + 1}
+                                                            </td>
+                                                            <td className="px-4 py-2.5">
+                                                                <EditableCell
+                                                                    value={row.moduleNumber}
+                                                                    onChange={(v) => updateRow(row.id, 'moduleNumber', v)}
+                                                                    className="font-mono text-blue-300"
+                                                                />
+                                                            </td>
+                                                            <td className="px-4 py-2.5">
+                                                                <EditableCell
+                                                                    value={row.material}
+                                                                    onChange={(v) => updateRow(row.id, 'material', v)}
+                                                                    className="text-white"
+                                                                />
+                                                            </td>
+                                                            <td className="px-4 py-2.5">
+                                                                <EditableCell
+                                                                    value={row.unit}
+                                                                    onChange={(v) => updateRow(row.id, 'unit', v)}
+                                                                    className="text-navy-300"
+                                                                />
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-right">
+                                                                <EditableCell
+                                                                    value={String(row.quantity)}
+                                                                    onChange={(v) => updateRow(row.id, 'quantity', v)}
+                                                                    className="font-mono text-green-400 text-right"
+                                                                    type="number"
+                                                                />
+                                                            </td>
+                                                            <td className="px-4 py-2.5">
+                                                                <TypeBadge type={row.type} />
+                                                            </td>
+                                                            <td className="px-4 py-2.5 text-center">
+                                                                <button
+                                                                    onClick={() => deleteRow(row.id)}
+                                                                    className="p-1 rounded hover:bg-red-900/50 text-navy-500 hover:text-red-400 transition-colors"
+                                                                    title="Zeile löschen"
+                                                                >
+                                                                    <Icon name="trash-2" size={14} />
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-20">
+                                        <div className="w-20 h-20 rounded-2xl bg-navy-800 flex items-center justify-center mx-auto mb-4">
+                                            <Icon name="inbox" size={36} className="text-navy-500" />
+                                        </div>
+                                        <p className="text-navy-400 text-lg">Keine Ergebnisse vorhanden</p>
+                                        <p className="text-navy-500 text-sm mt-1">
+                                            Laden Sie PDF-Montagepläne hoch und starten Sie die Analyse.
+                                        </p>
+                                        <button
+                                            onClick={() => setActiveTab('upload')}
+                                            className="mt-4 px-5 py-2 bg-navy-700 hover:bg-navy-600 text-white rounded-lg text-sm transition-colors"
+                                        >
+                                            Zum Upload
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Footer */}
+                    <footer className="mt-12 border-t border-navy-800 bg-navy-900/50">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between text-navy-500 text-xs">
+                            <span>TPV Materialextraktion · Montageplan-Analyzer</span>
+                            <span>Verarbeitung erfolgt lokal im Browser · Keine Daten werden übertragen</span>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        // ─── Sub-components ───
+
+        function EditableCell({ value, onChange, className = '', type = 'text' }) {
+            const [editing, setEditing] = useState(false);
+            const [editValue, setEditValue] = useState(value);
+            const inputRef = useRef(null);
+
+            useEffect(() => {
+                setEditValue(value);
+            }, [value]);
+
+            useEffect(() => {
+                if (editing && inputRef.current) {
+                    inputRef.current.focus();
+                    inputRef.current.select();
+                }
+            }, [editing]);
+
+            if (editing) {
+                return (
+                    <input
+                        ref={inputRef}
+                        type={type}
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => {
+                            setEditing(false);
+                            onChange(editValue);
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                setEditing(false);
+                                onChange(editValue);
+                            }
+                            if (e.key === 'Escape') {
+                                setEditing(false);
+                                setEditValue(value);
+                            }
+                        }}
+                        className={`w-full bg-navy-800 border border-navy-600 rounded px-2 py-1 text-sm outline-none focus:border-blue-500 ${className}`}
+                    />
+                );
+            }
+
+            return (
+                <span
+                    onClick={() => setEditing(true)}
+                    className={`editable-cell block px-2 py-1 rounded text-sm min-h-[28px] ${className}`}
+                >
+                    {value || '\u00A0'}
+                </span>
+            );
+        }
+
+        function TypeBadge({ type }) {
+            const config = {
+                'Konstruktionsbauteil': { bg: 'bg-blue-900/50', text: 'text-blue-300', border: 'border-blue-700' },
+                'Verbindungsmaterial': { bg: 'bg-orange-900/50', text: 'text-orange-300', border: 'border-orange-700' },
+                'Manuell': { bg: 'bg-navy-700', text: 'text-navy-300', border: 'border-navy-600' },
+                'Fehler': { bg: 'bg-red-900/50', text: 'text-red-300', border: 'border-red-700' },
+            };
+            const c = config[type] || config['Manuell'];
+            return (
+                <span className={`inline-block px-2 py-0.5 rounded text-xs border ${c.bg} ${c.text} ${c.border}`}>
+                    {type}
+                </span>
+            );
+        }
+
+        function InfoCard({ icon, title, description }) {
+            return (
+                <div className="bg-navy-900 rounded-xl border border-navy-700 p-5 hover:border-navy-600 transition-colors">
+                    <div className="w-10 h-10 rounded-lg bg-navy-800 flex items-center justify-center mb-3">
+                        <Icon name={icon} size={20} className="text-navy-300" />
+                    </div>
+                    <h4 className="font-semibold text-white mb-1">{title}</h4>
+                    <p className="text-navy-400 text-sm">{description}</p>
+                </div>
+            );
+        }
+
+        function StatCard({ icon, label, value, color }) {
+            const colors = {
+                blue: 'bg-blue-900/30 border-blue-800 text-blue-300',
+                green: 'bg-green-900/30 border-green-800 text-green-300',
+                purple: 'bg-purple-900/30 border-purple-800 text-purple-300',
+                orange: 'bg-orange-900/30 border-orange-800 text-orange-300',
+            };
+            return (
+                <div className={`rounded-xl border p-4 ${colors[color]}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Icon name={icon} size={16} />
+                        <span className="text-xs opacity-80">{label}</span>
+                    </div>
+                    <p className="text-2xl font-bold text-white">{value}</p>
+                </div>
+            );
+        }
+
+        // ─── Mount ───
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
