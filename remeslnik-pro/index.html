@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Řemeslník Pro</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e3a5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--primary:#1e3a5f;--primary-light:#2d5a8e;--accent:#f59e0b;--bg:#f1f5f9;--card:#fff;--text:#1e293b;--text-light:#64748b;--border:#e2e8f0;--success:#10b981;--danger:#ef4444;--radius:8px;--shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.hidden{display:none!important}
+button{cursor:pointer;border:none;font-family:inherit;font-size:inherit}
+input,select,textarea{font-family:inherit;font-size:inherit;border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;width:100%;background:#fff}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(30,58,95,.15)}
+
+/* Header */
+.header{background:var(--primary);color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.header h1{font-size:1.3rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.header-status{font-size:.75rem;background:var(--success);padding:2px 10px;border-radius:12px;font-weight:600}
+
+/* Navigation */
+.nav{display:flex;background:#fff;border-bottom:2px solid var(--border);overflow-x:auto}
+.nav-btn{padding:12px 20px;background:none;color:var(--text-light);font-weight:600;border-bottom:3px solid transparent;white-space:nowrap;transition:.2s}
+.nav-btn:hover{color:var(--primary);background:#f8fafc}
+.nav-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
+
+/* Main layout */
+.main{max-width:1200px;margin:0 auto;padding:20px}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;margin-bottom:20px}
+.card h2{font-size:1.15rem;margin-bottom:16px;color:var(--primary);display:flex;align-items:center;gap:8px}
+
+/* Buttons */
+.btn{padding:10px 20px;border-radius:var(--radius);font-weight:600;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-light)}
+.btn-accent{background:var(--accent);color:#fff}.btn-accent:hover{background:#d97706}
+.btn-success{background:var(--success);color:#fff}.btn-success:hover{background:#059669}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:#dc2626}
+.btn-outline{background:#fff;color:var(--primary);border:2px solid var(--primary)}.btn-outline:hover{background:var(--primary);color:#fff}
+.btn-sm{padding:6px 14px;font-size:.85rem}
+
+/* Form grid */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.form-group label{display:block;font-weight:600;margin-bottom:4px;font-size:.85rem;color:var(--text-light)}
+
+/* Drop zone */
+.dropzone{border:2px dashed var(--border);border-radius:var(--radius);padding:40px;text-align:center;color:var(--text-light);transition:.2s;cursor:pointer}
+.dropzone:hover,.dropzone.dragover{border-color:var(--primary);background:rgba(30,58,95,.05);color:var(--primary)}
+.dropzone p{margin-top:8px;font-size:.9rem}
+
+/* Results */
+.results-table{width:100%;border-collapse:collapse;margin:16px 0}
+.results-table th,.results-table td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
+.results-table th{background:#f8fafc;font-weight:600;color:var(--text-light);font-size:.85rem;text-transform:uppercase}
+.results-table .total-row{font-weight:700;font-size:1.05rem;background:#f0f9ff}
+.results-table .total-row td{border-top:2px solid var(--primary)}
+
+/* Zakázky list */
+.zakazka-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;transition:.2s}
+.zakazka-item:hover{border-color:var(--primary);box-shadow:var(--shadow)}
+.zakazka-meta{font-size:.85rem;color:var(--text-light)}
+.zakazka-actions{display:flex;gap:6px}
+
+/* Logo preview */
+.logo-preview{max-width:200px;max-height:80px;border:1px solid var(--border);border-radius:var(--radius);padding:8px;object-fit:contain}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--primary);color:#fff;padding:12px 24px;border-radius:var(--radius);box-shadow:0 4px 12px rgba(0,0,0,.2);z-index:1000;animation:slideIn .3s ease}
+@keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* Responsive */
+@media(max-width:768px){.main{padding:12px}.form-grid{grid-template-columns:1fr}.nav-btn{padding:10px 14px;font-size:.85rem}}
+
+/* Category badges */
+.cat-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:600;text-transform:uppercase}
+.cat-zednieni{background:#fef3c7;color:#92400e}
+.cat-sadrokarton{background:#dbeafe;color:#1e40af}
+.cat-dlazba{background:#d1fae5;color:#065f46}
+.cat-malovani{background:#fce7f3;color:#9d174d}
+.cat-bourani{background:#fee2e2;color:#991b1b}
+
+/* Ceník list */
+.cenik-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#f8fafc;border-radius:var(--radius);margin-bottom:6px}
+.cenik-item span{font-size:.9rem}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏗️ Řemeslník Pro</h1>
+  <span class="header-status" id="statusBadge">● OFFLINE READY</span>
+</div>
+
+<nav class="nav">
+  <button class="nav-btn active" data-tab="dashboard">📊 Dashboard</button>
+  <button class="nav-btn" data-tab="kalkulator">🧮 Kalkulátor</button>
+  <button class="nav-btn" data-tab="zakazky">📁 Zakázky</button>
+  <button class="nav-btn" data-tab="nastaveni">⚙️ Nastavení</button>
+</nav>
+
+<!-- ===== DASHBOARD ===== -->
+<div class="main" id="tab-dashboard">
+  <div class="card">
+    <h2>📥 Nahrát ceník (PDF / Excel / CSV)</h2>
+    <div class="dropzone" id="cenikDropzone">
+      <div style="font-size:2.5rem">📄</div>
+      <p>Přetáhněte soubor sem nebo klikněte pro výběr</p>
+      <p style="font-size:.8rem;margin-top:4px">Podporované formáty: PDF, XLSX, XLS, CSV, TSV</p>
+      <input type="file" id="cenikFileInput" accept=".pdf,.xlsx,.xls,.csv,.tsv" style="display:none">
+    </div>
+    <div id="cenikList" style="margin-top:16px"></div>
+  </div>
+
+  <div class="card">
+    <h2>🆕 Nová zakázka</h2>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="novaZakazka('zednieni')">🧱 Zedničení</button>
+      <button class="btn btn-primary" onclick="novaZakazka('sadrokarton')">📐 Sádrokarton</button>
+      <button class="btn btn-primary" onclick="novaZakazka('dlazba')">🔲 Dlažba / Obklad</button>
+      <button class="btn btn-primary" onclick="novaZakazka('malovani')">🎨 Malování</button>
+      <button class="btn btn-primary" onclick="novaZakazka('bourani')">💥 Bourání</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📊 Přehled</h2>
+    <div class="form-grid" id="dashboardStats">
+      <div style="text-align:center;padding:16px;background:#f0f9ff;border-radius:var(--radius)">
+        <div style="font-size:2rem;font-weight:700;color:var(--primary)" id="statZakazky">0</div>
+        <div style="color:var(--text-light);font-size:.85rem">Zakázek celkem</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#fef3c7;border-radius:var(--radius)">
+        <div style="font-size:2rem;font-weight:700;color:#92400e" id="statCeniky">0</div>
+        <div style="color:var(--text-light);font-size:.85rem">Nahraných ceníků</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#d1fae5;border-radius:var(--radius)">
+        <div style="font-size:2rem;font-weight:700;color:#065f46" id="statObrat">0 Kč</div>
+        <div style="color:var(--text-light);font-size:.85rem">Celkový obrat</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== KALKULÁTOR ===== -->
+<div class="main hidden" id="tab-kalkulator">
+  <div class="card">
+    <h2>🧮 Kalkulátor zakázky</h2>
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="form-group">
+        <label>Typ zakázky</label>
+        <select id="kalTyp" onchange="updateKalFields()">
+          <option value="zednieni">🧱 Zedničení</option>
+          <option value="sadrokarton">📐 Sádrokarton</option>
+          <option value="dlazba">🔲 Dlažba / Obklad</option>
+          <option value="malovani">🎨 Malování</option>
+          <option value="bourani">💥 Bourání</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Název zakázky</label>
+        <input type="text" id="kalNazev" placeholder="např. Stěna garáže">
+      </div>
+      <div class="form-group">
+        <label>Použít ceník</label>
+        <select id="kalCenik">
+          <option value="">Výchozí ceny</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Zedničení -->
+    <div id="fields-zednieni">
+      <div class="form-grid">
+        <div class="form-group"><label>Délka (m)</label><input type="number" id="zedDelka" step="0.1" value="10"></div>
+        <div class="form-group"><label>Výška (m)</label><input type="number" id="zedVyska" step="0.1" value="2.5"></div>
+        <div class="form-group"><label>Tloušťka (cm)</label>
+          <select id="zedTloustka">
+            <option value="25">25 cm (Porotherm 25)</option>
+            <option value="30">30 cm (Porotherm 30)</option>
+            <option value="44">44 cm (Porotherm 44)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sádrokarton -->
+    <div id="fields-sadrokarton" class="hidden">
+      <div class="form-grid">
+        <div class="form-group"><label>Plocha (m²)</label><input type="number" id="sdkPlocha" step="0.1" value="25"></div>
+        <div class="form-group"><label>Typ konstrukce</label>
+          <select id="sdkTyp">
+            <option value="prici">Příčka</option>
+            <option value="predstena">Předstěna</option>
+            <option value="podhled">Podhled</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Dvojité opláštění</label>
+          <select id="sdkDouble"><option value="0">Ne</option><option value="1">Ano</option></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dlažba -->
+    <div id="fields-dlazba" class="hidden">
+      <div class="form-grid">
+        <div class="form-group"><label>Plocha (m²)</label><input type="number" id="dlaPlocha" step="0.1" value="15"></div>
+        <div class="form-group"><label>Velikost dlaždice (cm)</label>
+          <select id="dlaVelikost">
+            <option value="30">30×30 cm</option>
+            <option value="45">45×45 cm</option>
+            <option value="60">60×60 cm</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Prořez (%)</label><input type="number" id="dlaProrez" value="10" min="5" max="30"></div>
+      </div>
+    </div>
+
+    <!-- Malování -->
+    <div id="fields-malovani" class="hidden">
+      <div class="form-grid">
+        <div class="form-group"><label>Plocha (m²)</label><input type="number" id="malPlocha" step="0.1" value="50"></div>
+        <div class="form-group"><label>Počet vrstev</label>
+          <select id="malVrstvy"><option value="2">2 vrstvy</option><option value="3">3 vrstvy</option></select>
+        </div>
+        <div class="form-group"><label>Penetrace</label>
+          <select id="malPenetrace"><option value="1">Ano</option><option value="0">Ne</option></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bourání -->
+    <div id="fields-bourani" class="hidden">
+      <div class="form-grid">
+        <div class="form-group"><label>Objem (m³)</label><input type="number" id="borObjem" step="0.1" value="5"></div>
+        <div class="form-group"><label>Typ materiálu</label>
+          <select id="borTyp">
+            <option value="cihla">Cihla</option>
+            <option value="beton">Beton</option>
+            <option value="smiseny">Směsný</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px;display:flex;gap:10px">
+      <button class="btn btn-accent" onclick="vypocitat()">🧮 Vypočítat</button>
+    </div>
+  </div>
+
+  <!-- Výsledky -->
+  <div class="card hidden" id="vysledkyCard">
+    <h2>📋 Výsledky kalkulace</h2>
+    <div id="vysledkyNazev" style="font-size:1.1rem;font-weight:600;margin-bottom:12px"></div>
+    <table class="results-table">
+      <thead><tr><th>Položka</th><th>Množství</th><th>Jedn. cena</th><th>Celkem</th></tr></thead>
+      <tbody id="vysledkyBody"></tbody>
+    </table>
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-success" onclick="ulozitZakazku()">💾 Uložit zakázku</button>
+      <button class="btn btn-accent" onclick="generovatFakturu()">📄 Faktura PDF</button>
+      <button class="btn btn-outline" onclick="exportZakazkaJSON()">📤 Export JSON</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ZAKÁZKY ===== -->
+<div class="main hidden" id="tab-zakazky">
+  <div class="card">
+    <h2>📁 Moje zakázky</h2>
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-outline btn-sm" onclick="importZakazky()">📥 Importovat JSON</button>
+      <button class="btn btn-outline btn-sm" onclick="exportVsechnyZakazky()">📤 Exportovat vše</button>
+      <input type="file" id="importInput" accept=".json" style="display:none" onchange="handleImport(event)">
+    </div>
+    <div id="zakazkyList"><p style="color:var(--text-light);text-align:center;padding:24px">Zatím žádné zakázky. Vytvořte novou v Kalkulátoru.</p></div>
+  </div>
+</div>
+
+<!-- ===== NASTAVENÍ ===== -->
+<div class="main hidden" id="tab-nastaveni">
+  <div class="card">
+    <h2>🏢 Údaje firmy</h2>
+    <div class="form-grid">
+      <div class="form-group"><label>Název firmy / OPF</label><input type="text" id="setNazev" placeholder="FIRMA s.r.o."></div>
+      <div class="form-group"><label>IČO</label><input type="text" id="setIco" placeholder="12345678" maxlength="8"></div>
+      <div class="form-group"><label>DIČ</label><input type="text" id="setDic" placeholder="CZ12345678" maxlength="12"></div>
+      <div class="form-group"><label>Ulice</label><input type="text" id="setUlice" placeholder="Hlavní 123"></div>
+      <div class="form-group"><label>Město</label><input type="text" id="setMesto" placeholder="Praha"></div>
+      <div class="form-group"><label>PSČ</label><input type="text" id="setPsc" placeholder="110 00" maxlength="6"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>💳 Platební údaje</h2>
+    <div class="form-grid">
+      <div class="form-group"><label>Číslo účtu</label><input type="text" id="setUcet" placeholder="123456-7890123456/0100"></div>
+      <div class="form-group"><label>IBAN (volitelné)</label><input type="text" id="setIban" placeholder="CZ65 0100 0000 0012 3456 7890"></div>
+      <div class="form-group"><label>Splatnost (dní)</label><input type="number" id="setSplatnost" value="14"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>🖼️ Logo firmy</h2>
+    <p style="font-size:.85rem;color:var(--text-light);margin-bottom:12px">Logo se zobrazí na fakturách. Doporučený formát PNG/JPG, max 500×200 px.</p>
+    <input type="file" id="logoInput" accept="image/*" onchange="handleLogo(event)">
+    <div style="margin-top:12px">
+      <img id="logoPreview" class="logo-preview hidden" alt="Logo firmy">
+      <button class="btn btn-danger btn-sm hidden" id="logoRemoveBtn" onclick="removeLogo()" style="margin-top:8px">✕ Odebrat logo</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>📋 Výchozí ceník</h2>
+    <p style="font-size:.85rem;color:var(--text-light);margin-bottom:12px">Upravte výchozí jednotkové ceny (bez DPH):</p>
+    <div class="form-grid">
+      <div class="form-group"><label>Zedničení - práce (Kč/h)</label><input type="number" id="defZedPrace" value="380"></div>
+      <div class="form-group"><label>Cihla Porotherm 25 (Kč/ks)</label><input type="number" id="defCihla25" value="18"></div>
+      <div class="form-group"><label>Malta M5 (Kč/bal)</label><input type="number" id="defMalta" value="45"></div>
+      <div class="form-group"><label>GKL deska (Kč/ks)</label><input type="number" id="defGkl" value="280"></div>
+      <div class="form-group"><label>SDK profil CW (Kč/ks)</label><input type="number" id="defCw" value="55"></div>
+      <div class="form-group"><label>SDK šrouby (Kč/ks)</label><input type="number" id="defSrouby" value="0.50"></div>
+      <div class="form-group"><label>Dlažba (Kč/m²)</label><input type="number" id="defDlazba" value="350"></div>
+      <div class="form-group"><label>Lepidlo (Kč/kg)</label><input type="number" id="defLepidlo" value="12"></div>
+      <div class="form-group"><label>Barva interiér (Kč/l)</label><input type="number" id="defBarva" value="85"></div>
+      <div class="form-group"><label>Penetrace (Kč/l)</label><input type="number" id="defPenetrace" value="65"></div>
+      <div class="form-group"><label>Bourání (Kč/m³)</label><input type="number" id="defBourani" value="1800"></div>
+      <div class="form-group"><label>Kontejner 6m³ (Kč/ks)</label><input type="number" id="defKontejner" value="4500"></div>
+    </div>
+  </div>
+  <div style="margin-top:8px">
+    <button class="btn btn-primary" onclick="ulozitNastaveni()">💾 Uložit nastavení</button>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toastContainer"></div>
+
+<script>
+// ============================================================
+// DATABASE (IndexedDB)
+// ============================================================
+const DB_NAME = 'RemeslnikProDB';
+const DB_VERSION = 1;
+let db;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('zakazky')) d.createObjectStore('zakazky', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('ceniky')) d.createObjectStore('ceniky', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('nastaveni')) d.createObjectStore('nastaveni', { keyPath: 'key' });
+    };
+    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+    req.onerror = (e) => reject(e);
+  });
+}
+
+function dbPut(store, data) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(data);
+    tx.oncomplete = () => resolve();
+    tx.onerror = (e) => reject(e);
+  });
+}
+
+function dbGetAll(store) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = (e) => reject(e);
+  });
+}
+
+function dbGet(store, key) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = (e) => reject(e);
+  });
+}
+
+function dbDelete(store, key) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = (e) => reject(e);
+  });
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.main').forEach(t => t.classList.add('hidden'));
+    document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
+  });
+});
+
+// ============================================================
+// TOAST NOTIFICATIONS
+// ============================================================
+function toast(msg, duration = 3000) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), duration);
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+let firma = { nazev: '', ico: '', dic: '', ulice: '', mesto: '', psc: '', ucet: '', iban: '', splatnost: 14, logo: '' };
+let vychoziCeny = {};
+
+async function nactiNastaveni() {
+  const f = await dbGet('nastaveni', 'firma');
+  if (f) { firma = f.value; naplnFormNastaveni(); }
+  const c = await dbGet('nastaveni', 'vychoziCeny');
+  if (c) { vychoziCeny = c.value; naplnFormCeny(); }
+}
+
+function naplnFormNastaveni() {
+  document.getElementById('setNazev').value = firma.nazev || '';
+  document.getElementById('setIco').value = firma.ico || '';
+  document.getElementById('setDic').value = firma.dic || '';
+  document.getElementById('setUlice').value = firma.ulice || '';
+  document.getElementById('setMesto').value = firma.mesto || '';
+  document.getElementById('setPsc').value = firma.psc || '';
+  document.getElementById('setUcet').value = firma.ucet || '';
+  document.getElementById('setIban').value = firma.iban || '';
+  document.getElementById('setSplatnost').value = firma.splatnost || 14;
+  if (firma.logo) {
+    document.getElementById('logoPreview').src = firma.logo;
+    document.getElementById('logoPreview').classList.remove('hidden');
+    document.getElementById('logoRemoveBtn').classList.remove('hidden');
+  }
+}
+
+function naplnFormCeny() {
+  const m = { defZedPrace: 'zedPrace', defCihla25: 'cihla25', defMalta: 'malta', defGkl: 'gkl', defCw: 'cw', defSrouby: 'srouby', defDlazba: 'dlazba', defLepidlo: 'lepidlo', defBarva: 'barva', defPenetrace: 'penetrace', defBourani: 'bourani', defKontejner: 'kontejner' };
+  for (const [elId, key] of Object.entries(m)) {
+    if (vychoziCeny[key] !== undefined) document.getElementById(elId).value = vychoziCeny[key];
+  }
+}
+
+async function ulozitNastaveni() {
+  firma = {
+    nazev: document.getElementById('setNazev').value.trim(),
+    ico: document.getElementById('setIco').value.trim(),
+    dic: document.getElementById('setDic').value.trim(),
+    ulice: document.getElementById('setUlice').value.trim(),
+    mesto: document.getElementById('setMesto').value.trim(),
+    psc: document.getElementById('setPsc').value.trim(),
+    ucet: document.getElementById('setUcet').value.trim(),
+    iban: document.getElementById('setIban').value.trim(),
+    splatnost: parseInt(document.getElementById('setSplatnost').value) || 14,
+    logo: firma.logo
+  };
+  vychoziCeny = {
+    zedPrace: parseFloat(document.getElementById('defZedPrace').value),
+    cihla25: parseFloat(document.getElementById('defCihla25').value),
+    malta: parseFloat(document.getElementById('defMalta').value),
+    gkl: parseFloat(document.getElementById('defGkl').value),
+    cw: parseFloat(document.getElementById('defCw').value),
+    srouby: parseFloat(document.getElementById('defSrouby').value),
+    dlazba: parseFloat(document.getElementById('defDlazba').value),
+    lepidlo: parseFloat(document.getElementById('defLepidlo').value),
+    barva: parseFloat(document.getElementById('defBarva').value),
+    penetrace: parseFloat(document.getElementById('defPenetrace').value),
+    bourani: parseFloat(document.getElementById('defBourani').value),
+    kontejner: parseFloat(document.getElementById('defKontejner').value),
+  };
+  await dbPut('nastaveni', { key: 'firma', value: firma });
+  await dbPut('nastaveni', { key: 'vychoziCeny', value: vychoziCeny });
+  toast('✅ Nastavení uloženo');
+}
+
+function handleLogo(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    firma.logo = e.target.result;
+    document.getElementById('logoPreview').src = firma.logo;
+    document.getElementById('logoPreview').classList.remove('hidden');
+    document.getElementById('logoRemoveBtn').classList.remove('hidden');
+    await dbPut('nastaveni', { key: 'firma', value: firma });
+    toast('✅ Logo nahráno');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeLogo() {
+  firma.logo = '';
+  document.getElementById('logoPreview').classList.add('hidden');
+  document.getElementById('logoRemoveBtn').classList.add('hidden');
+  document.getElementById('logoInput').value = '';
+  dbPut('nastaveni', { key: 'firma', value: firma });
+  toast('Logo odebráno');
+}
+
+// ============================================================
+// CENÍKY - DRAG & DROP + PARSING
+// ============================================================
+const dropzone = document.getElementById('cenikDropzone');
+const cenikInput = document.getElementById('cenikFileInput');
+
+dropzone.addEventListener('click', () => cenikInput.click());
+dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  handleCenikFile(e.dataTransfer.files[0]);
+});
+cenikInput.addEventListener('change', (e) => { if (e.target.files[0]) handleCenikFile(e.target.files[0]); });
+
+async function handleCenikFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  let data = {};
+  try {
+    if (ext === 'csv' || ext === 'tsv') {
+      const text = await file.text();
+      data = parseCSV(text, ext === 'tsv' ? '\t' : ',');
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      const text = await file.text();
+      // Simple TSV-like parse for basic Excel export
+      data = parseCSV(text, '\t');
+      if (Object.keys(data).length === 0) {
+        toast('⚠️ Pro Excel soubory exportujte nejprve do CSV/TSV');
+        return;
+      }
+    } else if (ext === 'pdf') {
+      toast('⚠️ PDF parsing: Uložte ceník jako CSV/TSV pro nejlepší výsledky');
+      data = { info: 'PDF ceník - upravte ručně v nastavení' };
+    } else {
+      toast('❌ Nepodporovaný formát');
+      return;
+    }
+
+    const cenik = {
+      id: 'cenik_' + Date.now(),
+      nazev: file.name,
+      datum: new Date().toLocaleDateString('cs-CZ'),
+      data: data
+    };
+    await dbPut('ceniky', cenik);
+    await nactiCeniky();
+    toast('✅ Ceník nahrán: ' + file.name);
+  } catch (err) {
+    toast('❌ Chyba při zpracování: ' + err.message);
+  }
+}
+
+function parseCSV(text, delimiter) {
+  const lines = text.trim().split('\n');
+  const result = {};
+  for (const line of lines) {
+    const parts = line.split(delimiter).map(s => s.trim().replace(/"/g, ''));
+    if (parts.length >= 2) {
+      const key = parts[0].toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_áčďéěíňóřšťúůýž]/g, '');
+      const val = parseFloat(parts[parts.length - 1]);
+      if (key && !isNaN(val)) result[key] = val;
+    }
+  }
+  return result;
+}
+
+async function nactiCeniky() {
+  const ceniky = await dbGetAll('ceniky');
+  const list = document.getElementById('cenikList');
+  const select = document.getElementById('kalCenik');
+
+  if (ceniky.length === 0) {
+    list.innerHTML = '';
+    select.innerHTML = '<option value="">Výchozí ceny</option>';
+    return;
+  }
+
+  list.innerHTML = ceniky.map(c => `
+    <div class="cenik-item">
+      <span>📄 <strong>${c.nazev}</strong> — nahrán ${c.datum}</span>
+      <button class="btn btn-danger btn-sm" onclick="smazatCenik('${c.id}')">✕</button>
+    </div>
+  `).join('');
+
+  select.innerHTML = '<option value="">Výchozí ceny</option>' +
+    ceniky.map(c => `<option value="${c.id}">${c.nazev}</option>`).join('');
+
+  updateStats();
+}
+
+async function smazatCenik(id) {
+  await dbDelete('ceniky', id);
+  await nactiCeniky();
+  toast('Ceník smazán');
+}
+
+// ============================================================
+// KALKULÁTOR
+// ============================================================
+let aktualniVysledky = null;
+
+function updateKalFields() {
+  const typ = document.getElementById('kalTyp').value;
+  ['zednieni','sadrokarton','dlazba','malovani','bourani'].forEach(t => {
+    document.getElementById('fields-' + t).classList.toggle('hidden', t !== typ);
+  });
+}
+
+function novaZakazka(typ) {
+  document.getElementById('kalTyp').value = typ;
+  updateKalFields();
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('[data-tab="kalkulator"]').classList.add('active');
+  document.querySelectorAll('.main').forEach(t => t.classList.add('hidden'));
+  document.getElementById('tab-kalkulator').classList.remove('hidden');
+}
+
+function getCeny() {
+  return {
+    zedPrace: parseFloat(document.getElementById('defZedPrace').value) || 380,
+    cihla25: parseFloat(document.getElementById('defCihla25').value) || 18,
+    malta: parseFloat(document.getElementById('defMalta').value) || 45,
+    gkl: parseFloat(document.getElementById('defGkl').value) || 280,
+    cw: parseFloat(document.getElementById('defCw').value) || 55,
+    srouby: parseFloat(document.getElementById('defSrouby').value) || 0.5,
+    dlazba: parseFloat(document.getElementById('defDlazba').value) || 350,
+    lepidlo: parseFloat(document.getElementById('defLepidlo').value) || 12,
+    barva: parseFloat(document.getElementById('defBarva').value) || 85,
+    penetrace: parseFloat(document.getElementById('defPenetrace').value) || 65,
+    bourani: parseFloat(document.getElementById('defBourani').value) || 1800,
+    kontejner: parseFloat(document.getElementById('defKontejner').value) || 4500,
+  };
+}
+
+function vypocitat() {
+  const typ = document.getElementById('kalTyp').value;
+  const nazev = document.getElementById('kalNazev').value || 'Zakázka';
+  const ceny = getCeny();
+  let polozky = [];
+  let inputData = {};
+
+  switch (typ) {
+    case 'zednieni': {
+      const delka = parseFloat(document.getElementById('zedDelka').value) || 0;
+      const vyska = parseFloat(document.getElementById('zedVyska').value) || 0;
+      const tloustka = parseInt(document.getElementById('zedTloustka').value);
+      inputData = { delka, vyska, tloustka };
+      const plocha = delka * vyska;
+      const cihelNaM2 = tloustka === 25 ? 50 : tloustka === 30 ? 45 : 16; // ks/m²
+      const pocetCihel = Math.ceil(plocha * cihelNaM2);
+      const maltaKg = Math.ceil(plocha * 30); // cca 30 kg/m²
+      const maltaBal = Math.ceil(maltaKg / 25); // 25 kg balení
+      const hodiny = Math.round(plocha * 0.65 * 10) / 10; // cca 0.65 h/m²
+
+      const nazevCihly = `Porotherm ${tloustka}`;
+      polozky = [
+        { nazev: nazevCihly, mnozstvi: pocetCihel, jednotka: 'ks', cena: ceny.cihla25 },
+        { nazev: 'Malta M5 (25 kg)', mnozstvi: maltaBal, jednotka: 'bal', cena: ceny.malta },
+        { nazev: 'Zednické práce', mnozstvi: hodiny, jednotka: 'h', cena: ceny.zedPrace },
+      ];
+      break;
+    }
+    case 'sadrokarton': {
+      const plocha = parseFloat(document.getElementById('sdkPlocha').value) || 0;
+      const typKonstr = document.getElementById('sdkTyp').value;
+      const double = parseInt(document.getElementById('sdkDouble').value);
+      inputData = { plocha, typKonstr, double };
+
+      const deskyNaM2 = typKonstr === 'prici' ? (double ? 4 : 2) : (double ? 2 : 1);
+      // GKL deska = 1.2 × 2.5 m = 3 m²
+      const pocetDesek = Math.ceil(plocha / 3 * deskyNaM2);
+      const profilyCW = Math.ceil(plocha * 2.5); // cca 2.5 ks/m²
+      const profilyUW = Math.ceil(plocha * 0.8);
+      const srouby = Math.ceil(pocetDesek * 28); // cca 28 šroubů/deska
+      const hodiny = Math.round(plocha * 0.5 * 10) / 10;
+
+      polozky = [
+        { nazev: 'GKL deska 1250×2500', mnozstvi: pocetDesek, jednotka: 'ks', cena: ceny.gkl },
+        { nazev: 'Profil CW 60', mnozstvi: profilyCW, jednotka: 'ks', cena: ceny.cw },
+        { nazev: 'Profil UW 60', mnozstvi: profilyUW, jednotka: 'ks', cena: Math.round(ceny.cw * 0.9) },
+        { nazev: 'Šrouby SDK', mnozstvi: srouby, jednotka: 'ks', cena: ceny.srouby },
+        { nazev: 'Montážní práce', mnozstvi: hodiny, jednotka: 'h', cena: ceny.zedPrace },
+      ];
+      break;
+    }
+    case 'dlazba': {
+      const plocha = parseFloat(document.getElementById('dlaPlocha').value) || 0;
+      const velikost = parseInt(document.getElementById('dlaVelikost').value);
+      const prorez = parseInt(document.getElementById('dlaProrez').value) || 10;
+      inputData = { plocha, velikost, prorez };
+
+      const plochaProrez = plocha * (1 + prorez / 100);
+      const lepidloKg = Math.ceil(plocha * 5); // 5 kg/m²
+      const lepidloBal = Math.ceil(lepidloKg / 25); // 25 kg balení
+      const sparina = Math.ceil(plocha * 0.5); // 0.5 kg/m²
+      const hodiny = Math.round(plocha * 0.8 * 10) / 10;
+
+      polozky = [
+        { nazev: `Dlažba ${velikost}×${velikost} cm`, mnozstvi: Math.ceil(plochaProrez), jednotka: 'm²', cena: ceny.dlazba },
+        { nazev: 'Lepidlo (25 kg)', mnozstvi: lepidloBal, jednotka: 'bal', cena: ceny.lepidlo * 25 },
+        { nazev: 'Spárovací hmota', mnozstvi: Math.ceil(sparina), jednotka: 'kg', cena: 8 },
+        { nazev: 'Pokládací práce', mnozstvi: hodiny, jednotka: 'h', cena: ceny.zedPrace },
+      ];
+      break;
+    }
+    case 'malovani': {
+      const plocha = parseFloat(document.getElementById('malPlocha').value) || 0;
+      const vrstvy = parseInt(document.getElementById('malVrstvy').value);
+      const penetrace = parseInt(document.getElementById('malPenetrace').value);
+      inputData = { plocha, vrstvy, penetrace };
+
+      const barvyLitry = Math.ceil(plocha * vrstvy / 10); // 10 m²/litr
+      const penetraceLitry = penetrace ? Math.ceil(plocha / 8) : 0; // 8 m²/litr
+      const hodiny = Math.round(plocha * 0.15 * 10) / 10;
+
+      polozky = [
+        { nazev: 'Interiérová barva', mnozstvi: barvyLitry, jednotka: 'l', cena: ceny.barva },
+      ];
+      if (penetrace) {
+        polozky.push({ nazev: 'Penetrace', mnozstvi: penetraceLitry, jednotka: 'l', cena: ceny.penetrace });
+      }
+      polozky.push(
+        { nazev: 'Krycí fólie + pásky', mnozstvi: 1, jednotka: 'sada', cena: Math.round(plocha * 2) },
+        { nazev: 'Malířské práce', mnozstvi: hodiny, jednotka: 'h', cena: ceny.zedPrace }
+      );
+      break;
+    }
+    case 'bourani': {
+      const objem = parseFloat(document.getElementById('borObjem').value) || 0;
+      const typMat = document.getElementById('borTyp').value;
+      inputData = { objem, typMat };
+
+      const nasobek = typMat === 'beton' ? 1.5 : typMat === 'smiseny' ? 1.2 : 1.0;
+      const kontejnery = Math.ceil(objem / 7); // 6-8 m³ kontejner
+      const hodiny = Math.round(objem * 3 * nasobek * 10) / 10;
+
+      polozky = [
+        { nazev: 'Bourací práce', mnozstvi: hodiny, jednotka: 'h', cena: Math.round(ceny.bourani / 3) },
+        { nazev: `Kontejner 6-8 m³`, mnozstvi: kontejnery, jednotka: 'ks', cena: ceny.kontejner },
+        { nazev: 'Odvoz a likvidace', mnozstvi: Math.ceil(objem), jednotka: 'm³', cena: 350 },
+      ];
+      break;
+    }
+  }
+
+  // Calculate totals
+  let celkemBezDPH = 0;
+  polozky.forEach(p => {
+    p.celkem = Math.round(p.mnozstvi * p.cena);
+    celkemBezDPH += p.celkem;
+  });
+  const dph = Math.round(celkemBezDPH * 0.21);
+  const celkemSDPH = celkemBezDPH + dph;
+
+  aktualniVysledky = { typ, nazev, polozky, celkemBezDPH, dph, celkemSDPH, inputData, datum: new Date().toISOString() };
+
+  // Render
+  const body = document.getElementById('vysledkyBody');
+  body.innerHTML = polozky.map(p => `
+    <tr>
+      <td>${p.nazev}</td>
+      <td>${p.mnozstvi} ${p.jednotka}</td>
+      <td>${formatCZK(p.cena)}/${p.jednotka}</td>
+      <td><strong>${formatCZK(p.celkem)}</strong></td>
+    </tr>
+  `).join('') + `
+    <tr><td colspan="3" style="text-align:right">Celkem bez DPH:</td><td><strong>${formatCZK(celkemBezDPH)}</strong></td></tr>
+    <tr><td colspan="3" style="text-align:right">DPH 21%:</td><td>${formatCZK(dph)}</td></tr>
+    <tr class="total-row"><td colspan="3" style="text-align:right">CELKEM S DPH:</td><td>${formatCZK(celkemSDPH)}</td></tr>
+  `;
+
+  document.getElementById('vysledkyNazev').textContent = `${getTypLabel(typ)} — ${nazev}`;
+  document.getElementById('vysledkyCard').classList.remove('hidden');
+}
+
+function formatCZK(n) {
+  return n.toLocaleString('cs-CZ') + ' Kč';
+}
+
+function getTypLabel(typ) {
+  const labels = { zednieni: '🧱 Zedničení', sadrokarton: '📐 Sádrokarton', dlazba: '🔲 Dlažba/Obklad', malovani: '🎨 Malování', bourani: '💥 Bourání' };
+  return labels[typ] || typ;
+}
+
+function getTypCat(typ) {
+  return 'cat-' + typ;
+}
+
+// ============================================================
+// ZAKÁZKY - CRUD
+// ============================================================
+async function ulozitZakazku() {
+  if (!aktualniVysledky) return;
+  const id = 'Z' + new Date().getFullYear() + String(new Date().getMonth()+1).padStart(2,'0') + String(Date.now()).slice(-4);
+  const zakazka = {
+    id,
+    ...aktualniVysledky,
+    stav: 'dokoncena'
+  };
+  await dbPut('zakazky', zakazka);
+  toast('✅ Zakázka uložena: ' + id);
+  await nactiZakazky();
+  updateStats();
+}
+
+async function nactiZakazky() {
+  const zakazky = await dbGetAll('zakazky');
+  const list = document.getElementById('zakazkyList');
+
+  if (zakazky.length === 0) {
+    list.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:24px">Zatím žádné zakázky. Vytvořte novou v Kalkulátoru.</p>';
+    return;
+  }
+
+  zakazky.sort((a, b) => new Date(b.datum) - new Date(a.datum));
+  list.innerHTML = zakazky.map(z => `
+    <div class="zakazka-item">
+      <div>
+        <strong>${z.id}</strong> — ${z.nazev}
+        <span class="cat-badge ${getTypCat(z.typ)}">${z.typ}</span>
+        <div class="zakazka-meta">${new Date(z.datum).toLocaleDateString('cs-CZ')} · ${formatCZK(z.celkemSDPH)}</div>
+      </div>
+      <div class="zakazka-actions">
+        <button class="btn btn-accent btn-sm" onclick="generovatFakturuZakazky('${z.id}')">📄 PDF</button>
+        <button class="btn btn-outline btn-sm" onclick="exportJednaZakazka('${z.id}')">📤 JSON</button>
+        <button class="btn btn-danger btn-sm" onclick="smazatZakazku('${z.id}')">✕</button>
+      </div>
+    </div>
+  `).join('');
+
+  updateStats();
+}
+
+async function smazatZakazku(id) {
+  if (!confirm('Opravdu smazat zakázku ' + id + '?')) return;
+  await dbDelete('zakazky', id);
+  await nactiZakazky();
+  toast('Zakázka smazána');
+}
+
+async function exportJednaZakazka(id) {
+  const z = await dbGet('zakazky', id);
+  if (!z) return;
+  downloadJSON([z], `zakazka_${id}.json`);
+}
+
+function exportZakazkaJSON() {
+  if (!aktualniVysledky) return;
+  downloadJSON([aktualniVysledky], `kalkulace_${Date.now()}.json`);
+}
+
+async function exportVsechnyZakazky() {
+  const zakazky = await dbGetAll('zakazky');
+  if (zakazky.length === 0) { toast('Žádné zakázky k exportu'); return; }
+  downloadJSON(zakazky, `zakazky_export_${new Date().toISOString().slice(0,10)}.json`);
+}
+
+function downloadJSON(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('📤 Exportováno: ' + filename);
+}
+
+function importZakazky() {
+  document.getElementById('importInput').click();
+}
+
+async function handleImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const arr = Array.isArray(data) ? data : [data];
+    for (const z of arr) {
+      if (!z.id) z.id = 'IMP' + Date.now();
+      await dbPut('zakazky', z);
+    }
+    await nactiZakazky();
+    toast(`✅ Importováno ${arr.length} zakázek`);
+  } catch (e) {
+    toast('❌ Chyba importu: ' + e.message);
+  }
+  event.target.value = '';
+}
+
+// ============================================================
+// STATS
+// ============================================================
+async function updateStats() {
+  const zakazky = await dbGetAll('zakazky');
+  const ceniky = await dbGetAll('ceniky');
+  document.getElementById('statZakazky').textContent = zakazky.length;
+  document.getElementById('statCeniky').textContent = ceniky.length;
+  const obrat = zakazky.reduce((s, z) => s + (z.celkemSDPH || 0), 0);
+  document.getElementById('statObrat').textContent = formatCZK(obrat);
+}
+
+// ============================================================
+// PDF FAKTURA (jsPDF inline)
+// ============================================================
+async function generovatFakturu() {
+  if (!aktualniVysledky) { toast('Nejprve proveďte kalkulaci'); return; }
+  const id = 'F' + new Date().getFullYear() + String(new Date().getMonth()+1).padStart(2,'0') + String(Date.now()).slice(-4);
+  await vytvorPDF(aktualniVysledky, id);
+}
+
+async function generovatFakturuZakazky(zakazkaId) {
+  const z = await dbGet('zakazky', zakazkaId);
+  if (!z) return;
+  const id = 'F' + zakazkaId.slice(1);
+  await vytvorPDF(z, id);
+}
+
+async function vytvorPDF(data, fakturaId) {
+  // Using jsPDF loaded dynamically
+  if (typeof jspdf === 'undefined' && typeof jsPDF === 'undefined') {
+    // Load jsPDF dynamically
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  }
+
+  const { jsPDF } = window.jspdf || { jsPDF: window.jsPDF };
+  if (!jsPDF) {
+    // Fallback: generate HTML invoice
+    generateHTMLInvoice(data, fakturaId);
+    return;
+  }
+
+  const doc = new jsPDF();
+  const rok = new Date().getFullYear();
+  const dnes = new Date().toLocaleDateString('cs-CZ');
+  const splatnost = new Date();
+  splatnost.setDate(splatnost.getDate() + (firma.splatnost || 14));
+  const datumSplatnosti = splatnost.toLocaleDateString('cs-CZ');
+
+  let y = 15;
+
+  // Logo
+  if (firma.logo) {
+    try { doc.addImage(firma.logo, 'PNG', 14, y, 40, 16); } catch(e) {}
+    y += 20;
+  }
+
+  // Header
+  doc.setFontSize(20);
+  doc.setTextColor(30, 58, 95);
+  doc.text(`Faktura \u010D. ${fakturaId}/${rok}`, 14, y);
+  y += 5;
+  doc.setDrawColor(30, 58, 95);
+  doc.setLineWidth(0.5);
+  doc.line(14, y, 196, y);
+  y += 10;
+
+  // Dodavatel
+  doc.setFontSize(10);
+  doc.setTextColor(100, 116, 139);
+  doc.text('DODAVATEL:', 14, y);
+  doc.text('ODBERATEL:', 110, y);
+  y += 6;
+  doc.setTextColor(30, 41, 59);
+  doc.setFontSize(11);
+  doc.text(firma.nazev || 'Nastavte firmu v Nastaven\u00ed', 14, y);
+  y += 5;
+  doc.setFontSize(9);
+  if (firma.ico) doc.text(`I\u010CO: ${firma.ico}`, 14, y);
+  if (firma.dic) doc.text(`DI\u010C: ${firma.dic}`, 14, y + 4);
+  if (firma.ulice) doc.text(firma.ulice, 14, y + 8);
+  if (firma.mesto) doc.text(`${firma.psc} ${firma.mesto}`, 14, y + 12);
+
+  // Odberatel placeholder
+  doc.setFontSize(9);
+  doc.text('Dopln\u00ed u\u017Eivatel', 110, y);
+  y += 20;
+
+  // Dates
+  doc.setFontSize(9);
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Datum vystaven\u00ed: ${dnes}`, 14, y);
+  doc.text(`Datum splatnosti: ${datumSplatnosti}`, 14, y + 5);
+  doc.text(`Zp\u016Fsob platby: bankovn\u00ed p\u0159evod`, 14, y + 10);
+  if (firma.ucet) doc.text(`\u010C\u00edslo \u00fa\u010Dtu: ${firma.ucet}`, 14, y + 15);
+  if (firma.iban) doc.text(`IBAN: ${firma.iban}`, 14, y + 20);
+  y += 30;
+
+  // Table header
+  doc.setFillColor(241, 245, 249);
+  doc.rect(14, y, 182, 8, 'F');
+  doc.setTextColor(30, 58, 95);
+  doc.setFontSize(9);
+  doc.text('Polo\u017Eka', 16, y + 5.5);
+  doc.text('Mno\u017Estv\u00ed', 95, y + 5.5);
+  doc.text('Cena/j.', 125, y + 5.5);
+  doc.text('Celkem', 160, y + 5.5);
+  y += 10;
+
+  // Table rows
+  doc.setTextColor(30, 41, 59);
+  data.polozky.forEach(p => {
+    doc.text(p.nazev, 16, y + 4);
+    doc.text(`${p.mnozstvi} ${p.jednotka}`, 95, y + 4);
+    doc.text(`${p.cena.toLocaleString('cs-CZ')} K\u010D`, 125, y + 4);
+    doc.text(`${p.celkem.toLocaleString('cs-CZ')} K\u010D`, 160, y + 4);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, y + 7, 196, y + 7);
+    y += 8;
+  });
+
+  // Totals
+  y += 4;
+  doc.setDrawColor(30, 58, 95);
+  doc.setLineWidth(0.3);
+  doc.line(120, y, 196, y);
+  y += 6;
+  doc.setFontSize(10);
+  doc.text('Celkem bez DPH:', 120, y);
+  doc.text(`${data.celkemBezDPH.toLocaleString('cs-CZ')} K\u010D`, 170, y);
+  y += 6;
+  doc.text('DPH 21%:', 120, y);
+  doc.text(`${data.dph.toLocaleString('cs-CZ')} K\u010D`, 170, y);
+  y += 2;
+  doc.setLineWidth(0.5);
+  doc.line(120, y, 196, y);
+  y += 6;
+  doc.setFontSize(12);
+  doc.setTextColor(30, 58, 95);
+  doc.text('CELKEM S DPH:', 120, y);
+  doc.text(`${data.celkemSDPH.toLocaleString('cs-CZ')} K\u010D`, 165, y);
+
+  // Footer
+  y = 270;
+  doc.setFontSize(7);
+  doc.setTextColor(150, 150, 150);
+  doc.text(`Faktura dle z\u00e1kona 235/2004 Sb. o dani z p\u0159idan\u00e9 hodnoty | Vygenerov\u00e1no: \u0158emesln\u00edk Pro`, 14, y);
+
+  doc.save(`faktura_${fakturaId}.pdf`);
+  toast(`📄 Faktura ${fakturaId} vygenerována`);
+}
+
+function generateHTMLInvoice(data, fakturaId) {
+  const rok = new Date().getFullYear();
+  const dnes = new Date().toLocaleDateString('cs-CZ');
+  const splatnost = new Date();
+  splatnost.setDate(splatnost.getDate() + (firma.splatnost || 14));
+  const datumSplatnosti = splatnost.toLocaleDateString('cs-CZ');
+
+  const html = `<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><title>Faktura ${fakturaId}</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#1e293b}
+h1{color:#1e3a5f;border-bottom:2px solid #1e3a5f;padding-bottom:8px}
+.header{display:flex;justify-content:space-between;margin:20px 0}
+.col{flex:1}
+table{width:100%;border-collapse:collapse;margin:20px 0}
+th{background:#f1f5f9;text-align:left;padding:8px;color:#1e3a5f;border-bottom:2px solid #e2e8f0}
+td{padding:8px;border-bottom:1px solid #e2e8f0}
+.total{text-align:right;font-size:1.1em}
+.total strong{color:#1e3a5f}
+.footer{margin-top:40px;font-size:.8em;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:8px}
+@media print{body{margin:0;padding:10px}}
+</style></head><body>
+${firma.logo ? `<img src="${firma.logo}" style="max-width:200px;max-height:60px;margin-bottom:10px">` : ''}
+<h1>Faktura č. ${fakturaId}/${rok}</h1>
+<div class="header">
+<div class="col"><strong>Dodavatel:</strong><br>${firma.nazev || 'Nastavte v Nastavení'}<br>
+${firma.ico ? `IČO: ${firma.ico}<br>` : ''}${firma.dic ? `DIČ: ${firma.dic}<br>` : ''}
+${firma.ulice ? `${firma.ulice}<br>` : ''}${firma.mesto ? `${firma.psc} ${firma.mesto}` : ''}</div>
+<div class="col"><strong>Odběratel:</strong><br>Doplní uživatel</div>
+</div>
+<p>Datum vystavení: ${dnes} | Datum splatnosti: ${datumSplatnosti}<br>
+Způsob platby: bankovní převod${firma.ucet ? ` | Účet: ${firma.ucet}` : ''}${firma.iban ? ` | IBAN: ${firma.iban}` : ''}</p>
+<table><thead><tr><th>Položka</th><th>Množství</th><th>Cena/j.</th><th>Celkem</th></tr></thead><tbody>
+${data.polozky.map(p => `<tr><td>${p.nazev}</td><td>${p.mnozstvi} ${p.jednotka}</td><td>${p.cena.toLocaleString('cs-CZ')} Kč</td><td><strong>${p.celkem.toLocaleString('cs-CZ')} Kč</strong></td></tr>`).join('')}
+</tbody></table>
+<div class="total">Celkem bez DPH: ${data.celkemBezDPH.toLocaleString('cs-CZ')} Kč<br>
+DPH 21%: ${data.dph.toLocaleString('cs-CZ')} Kč<br>
+<strong>CELKEM S DPH: ${data.celkemSDPH.toLocaleString('cs-CZ')} Kč</strong></div>
+<div class="footer">Faktura dle zákona 235/2004 Sb. o dani z přidané hodnoty | Vygenerováno: Řemeslník Pro</div>
+</body></html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `faktura_${fakturaId}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast(`📄 Faktura ${fakturaId} vygenerována (HTML - otevřete a tiskněte jako PDF)`);
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => resolve(); // don't block on failure
+    document.head.appendChild(s);
+  });
+}
+
+// ============================================================
+// SERVICE WORKER REGISTRATION
+// ============================================================
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js')
+    .then(() => { document.getElementById('statusBadge').textContent = '● OFFLINE READY'; })
+    .catch(() => { document.getElementById('statusBadge').textContent = '● ONLINE'; document.getElementById('statusBadge').style.background = '#f59e0b'; });
+}
+
+// ============================================================
+// INIT
+// ============================================================
+(async function init() {
+  await openDB();
+  await nactiNastaveni();
+  await nactiCeniky();
+  await nactiZakazky();
+  await updateStats();
+})();
+</script>
+</body>
+</html>
