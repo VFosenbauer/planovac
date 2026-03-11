@@ -7,6 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1e3a5f">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<script src="jspdf.umd.min.js" defer></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--primary:#1e3a5f;--primary-light:#2d5a8e;--accent:#f59e0b;--bg:#f1f5f9;--card:#fff;--text:#1e293b;--text-light:#64748b;--border:#e2e8f0;--success:#10b981;--danger:#ef4444;--radius:8px;--shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06)}
@@ -856,7 +857,7 @@ async function exportJednaZakazka(id) {
 }
 
 function exportZakazkaJSON() {
-  if (!aktualniVysledky) return;
+  if (!aktualniVysledky) { toast('⚠️ Nejprve proveďte kalkulaci'); return; }
   downloadJSON([aktualniVysledky], `kalkulace_${Date.now()}.json`);
 }
 
@@ -867,13 +868,22 @@ async function exportVsechnyZakazky() {
 }
 
 function downloadJSON(data, filename) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
-  toast('📤 Exportováno: ' + filename);
+  try {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+      document.body.removeChild(a);
+    }, 100);
+    toast('📤 Exportováno: ' + filename);
+  } catch (e) {
+    toast('❌ Chyba exportu: ' + e.message);
+  }
 }
 
 function importZakazky() {
@@ -928,15 +938,18 @@ async function generovatFakturuZakazky(zakazkaId) {
 }
 
 async function vytvorPDF(data, fakturaId) {
-  // Using jsPDF loaded dynamically
+  // Load jsPDF from local file (works on file:// protocol too)
   if (typeof jspdf === 'undefined' && typeof jsPDF === 'undefined') {
-    // Load jsPDF dynamically
+    await loadScript('./jspdf.umd.min.js');
+  }
+  // Fallback to CDN if local load failed
+  if (typeof jspdf === 'undefined' && typeof jsPDF === 'undefined') {
     await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
   }
 
   const { jsPDF } = window.jspdf || { jsPDF: window.jsPDF };
   if (!jsPDF) {
-    // Fallback: generate HTML invoice
+    toast('⚠️ PDF knihovna není dostupná, generuji HTML fakturu');
     generateHTMLInvoice(data, fakturaId);
     return;
   }
@@ -1095,8 +1108,13 @@ DPH 21%: ${data.dph.toLocaleString('cs-CZ')} Kč<br>
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `faktura_${fakturaId}.html`;
+  a.style.display = 'none';
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(a.href);
+  setTimeout(() => {
+    URL.revokeObjectURL(a.href);
+    document.body.removeChild(a);
+  }, 100);
   toast(`📄 Faktura ${fakturaId} vygenerována (HTML - otevřete a tiskněte jako PDF)`);
 }
 
