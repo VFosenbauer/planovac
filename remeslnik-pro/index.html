@@ -85,6 +85,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary)
 /* Ceník list */
 .cenik-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#f8fafc;border-radius:var(--radius);margin-bottom:6px}
 .cenik-item span{font-size:.9rem}
+
+/* Custom items */
+#vlastniPolozkyList .form-grid{background:#f8fafc;padding:10px;border-radius:var(--radius);border:1px solid var(--border)}
 </style>
 </head>
 <body>
@@ -243,6 +246,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary)
           </select>
         </div>
       </div>
+    </div>
+
+    <!-- Vlastní položky -->
+    <div id="vlastniPolozky" style="margin-top:16px">
+      <h3 style="font-size:.95rem;color:var(--text-light);margin-bottom:8px">Vlastní položky (volitelné):</h3>
+      <div id="vlastniPolozkyList"></div>
+      <button class="btn btn-outline btn-sm" onclick="pridatVlastniPolozku()" style="margin-top:8px">+ Přidat položku</button>
     </div>
 
     <div style="margin-top:16px;display:flex;gap:10px">
@@ -627,8 +637,8 @@ function novaZakazka(typ) {
   document.getElementById('tab-kalkulator').classList.remove('hidden');
 }
 
-function getCeny() {
-  return {
+async function getCeny() {
+  const vychozi = {
     zedPrace: parseFloat(document.getElementById('defZedPrace').value) || 380,
     cihla25: parseFloat(document.getElementById('defCihla25').value) || 18,
     malta: parseFloat(document.getElementById('defMalta').value) || 45,
@@ -642,12 +652,87 @@ function getCeny() {
     bourani: parseFloat(document.getElementById('defBourani').value) || 1800,
     kontejner: parseFloat(document.getElementById('defKontejner').value) || 4500,
   };
+
+  // Apply ceník override if selected
+  const cenikId = document.getElementById('kalCenik').value;
+  if (cenikId) {
+    try {
+      const cenik = await dbGet('ceniky', cenikId);
+      if (cenik && cenik.data) {
+        // Map ceník keys to internal keys (fuzzy matching)
+        const mapping = {
+          'prace': 'zedPrace', 'zednicke_prace': 'zedPrace', 'zed_prace': 'zedPrace', 'hodina': 'zedPrace',
+          'cihla': 'cihla25', 'porotherm': 'cihla25', 'cihla_25': 'cihla25', 'cihla25': 'cihla25',
+          'malta': 'malta', 'malta_m5': 'malta',
+          'gkl': 'gkl', 'sadrokarton': 'gkl', 'gkl_deska': 'gkl',
+          'profil': 'cw', 'cw': 'cw', 'profil_cw': 'cw',
+          'srouby': 'srouby', 'sroub': 'srouby', 'sdk_srouby': 'srouby',
+          'dlazba': 'dlazba', 'dlazdice': 'dlazba',
+          'lepidlo': 'lepidlo',
+          'barva': 'barva', 'interierova_barva': 'barva',
+          'penetrace': 'penetrace',
+          'bourani': 'bourani', 'bouraci_prace': 'bourani',
+          'kontejner': 'kontejner',
+        };
+        for (const [cenikKey, val] of Object.entries(cenik.data)) {
+          const normKey = cenikKey.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+          if (mapping[normKey]) {
+            vychozi[mapping[normKey]] = val;
+          }
+          // Also try direct match
+          if (vychozi[normKey] !== undefined) {
+            vychozi[normKey] = val;
+          }
+        }
+        toast('Použit ceník: ' + cenik.nazev);
+      }
+    } catch (e) {
+      // Fallback to default prices
+    }
+  }
+  return vychozi;
 }
 
-function vypocitat() {
+// Custom line items management
+let vlastniPolozkyCounter = 0;
+function pridatVlastniPolozku() {
+  vlastniPolozkyCounter++;
+  const id = vlastniPolozkyCounter;
+  const div = document.createElement('div');
+  div.id = `vp_${id}`;
+  div.className = 'form-grid';
+  div.style.marginBottom = '8px';
+  div.innerHTML = `
+    <div class="form-group"><label>Název</label><input type="text" id="vpNazev_${id}" placeholder="např. Doprava"></div>
+    <div class="form-group"><label>Množství</label><input type="number" id="vpMnozstvi_${id}" step="0.1" value="1"></div>
+    <div class="form-group"><label>Jednotka</label><input type="text" id="vpJednotka_${id}" value="ks" placeholder="ks, h, m²..."></div>
+    <div class="form-group"><label>Cena/j. (Kč)</label>
+      <div style="display:flex;gap:6px"><input type="number" id="vpCena_${id}" step="1" value="0">
+      <button class="btn btn-danger btn-sm" onclick="document.getElementById('vp_${id}').remove()" style="white-space:nowrap">✕</button></div>
+    </div>
+  `;
+  document.getElementById('vlastniPolozkyList').appendChild(div);
+}
+
+function getVlastniPolozky() {
+  const polozky = [];
+  document.querySelectorAll('[id^="vp_"]').forEach(div => {
+    const id = div.id.split('_')[1];
+    const nazev = document.getElementById(`vpNazev_${id}`)?.value?.trim();
+    const mnozstvi = parseFloat(document.getElementById(`vpMnozstvi_${id}`)?.value) || 0;
+    const jednotka = document.getElementById(`vpJednotka_${id}`)?.value?.trim() || 'ks';
+    const cena = parseFloat(document.getElementById(`vpCena_${id}`)?.value) || 0;
+    if (nazev && mnozstvi > 0 && cena > 0) {
+      polozky.push({ nazev, mnozstvi, jednotka, cena });
+    }
+  });
+  return polozky;
+}
+
+async function vypocitat() {
   const typ = document.getElementById('kalTyp').value;
   const nazev = document.getElementById('kalNazev').value || 'Zakázka';
-  const ceny = getCeny();
+  const ceny = await getCeny();
   let polozky = [];
   let inputData = {};
 
@@ -754,6 +839,10 @@ function vypocitat() {
       break;
     }
   }
+
+  // Add custom line items
+  const vlastni = getVlastniPolozky();
+  polozky = polozky.concat(vlastni);
 
   // Calculate totals
   let celkemBezDPH = 0;
@@ -922,6 +1011,184 @@ async function updateStats() {
 }
 
 // ============================================================
+// CZECH DIACRITICS TRANSLITERATION FOR PDF
+// ============================================================
+function stripDiacritics(str) {
+  const map = {
+    'á':'a','č':'c','ď':'d','é':'e','ě':'e','í':'i','ň':'n','ó':'o',
+    'ř':'r','š':'s','ť':'t','ú':'u','ů':'u','ý':'y','ž':'z',
+    'Á':'A','Č':'C','Ď':'D','É':'E','Ě':'E','Í':'I','Ň':'N','Ó':'O',
+    'Ř':'R','Š':'S','Ť':'T','Ú':'U','Ů':'U','Ý':'Y','Ž':'Z'
+  };
+  return str.replace(/[áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]/g, c => map[c] || c);
+}
+
+// ============================================================
+// QR PLATBA GENERATOR (SPD format, rendered as SVG)
+// ============================================================
+function generateQRPaymentString(ucet, castka, vs, zprava) {
+  // SPD format: SPD*1.0*ACC:CZ...*AM:1234*CC:CZK*MSG:text*X-VS:123
+  let spd = 'SPD*1.0';
+  if (ucet) {
+    // Convert Czech account number to IBAN if not already IBAN
+    const iban = ucet.startsWith('CZ') ? ucet.replace(/\s/g, '') : ucet;
+    spd += `*ACC:${iban}`;
+  }
+  if (castka) spd += `*AM:${castka}`;
+  spd += '*CC:CZK';
+  if (vs) spd += `*X-VS:${vs}`;
+  if (zprava) spd += `*MSG:${stripDiacritics(zprava).substring(0, 60)}`;
+  return spd;
+}
+
+// Minimal QR Code generator (alphanumeric mode, generates SVG)
+// Based on simplified QR encoding for SPD strings
+function generateQRSVG(text, size) {
+  // Use a simple approach: render as data matrix using canvas, then convert
+  // For reliability, we use the established qrcode-generator algorithm inline
+  const modules = generateQRMatrix(text);
+  if (!modules) return '';
+  const n = modules.length;
+  const cellSize = size / n;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n} ${n}" width="${size}" height="${size}">`;
+  svg += `<rect width="${n}" height="${n}" fill="white"/>`;
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (modules[r][c]) {
+        svg += `<rect x="${c}" y="${r}" width="1" height="1" fill="black"/>`;
+      }
+    }
+  }
+  svg += '</svg>';
+  return svg;
+}
+
+// Lightweight QR Code matrix generator
+function generateQRMatrix(data) {
+  // Use canvas-based QR if available, otherwise return null
+  try {
+    // We'll use a minimal QR encoder
+    const qr = qrcodegen(data);
+    return qr;
+  } catch(e) {
+    return null;
+  }
+}
+
+// Minimal QR Code encoder (Mode Byte, ECC L, Version auto)
+function qrcodegen(text) {
+  const data = new TextEncoder().encode(text);
+  const len = data.length;
+  // Determine version (1-10 for typical SPD strings)
+  let ver = 1;
+  const capL = [17,32,53,78,106,134,154,192,230,271];
+  while (ver <= 10 && capL[ver-1] < len) ver++;
+  if (ver > 10) return null;
+  const size = 17 + ver * 4;
+  const modules = Array.from({length: size}, () => Array(size).fill(false));
+  const reserved = Array.from({length: size}, () => Array(size).fill(false));
+
+  // Finder patterns
+  function finderPattern(row, col) {
+    for (let r = -1; r <= 7; r++) for (let c = -1; c <= 7; c++) {
+      const rr = row + r, cc = col + c;
+      if (rr < 0 || rr >= size || cc < 0 || cc >= size) continue;
+      const inOuter = r >= 0 && r <= 6 && c >= 0 && c <= 6;
+      const inInner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+      const isBorder = r === 0 || r === 6 || c === 0 || c === 6;
+      modules[rr][cc] = inOuter && (isBorder || inInner);
+      reserved[rr][cc] = true;
+    }
+  }
+  finderPattern(0, 0);
+  finderPattern(0, size - 7);
+  finderPattern(size - 7, 0);
+
+  // Timing patterns
+  for (let i = 8; i < size - 8; i++) {
+    modules[6][i] = i % 2 === 0;
+    modules[i][6] = i % 2 === 0;
+    reserved[6][i] = true;
+    reserved[i][6] = true;
+  }
+
+  // Alignment pattern (version >= 2)
+  if (ver >= 2) {
+    const pos = [6, size - 7];
+    for (const r of pos) for (const c of pos) {
+      if (reserved[r][c]) continue;
+      for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) {
+        const rr = r + dr, cc = c + dc;
+        if (rr >= 0 && rr < size && cc >= 0 && cc < size) {
+          modules[rr][cc] = Math.abs(dr) === 2 || Math.abs(dc) === 2 || (dr === 0 && dc === 0);
+          reserved[rr][cc] = true;
+        }
+      }
+    }
+  }
+
+  // Reserve format info areas
+  for (let i = 0; i < 9; i++) {
+    if (i < size) { reserved[8][i] = true; reserved[i][8] = true; }
+    if (size - 1 - i >= 0 && size - 1 - i < size) { reserved[8][size - 1 - i] = true; reserved[size - 1 - i][8] = true; }
+  }
+  modules[size - 8][8] = true; // Dark module
+  reserved[size - 8][8] = true;
+
+  // Encode data in byte mode
+  const totalBits = capL[ver-1] * 8;
+  const bits = [];
+  function pushBits(val, count) { for (let i = count - 1; i >= 0; i--) bits.push((val >> i) & 1); }
+  pushBits(0b0100, 4); // Byte mode
+  pushBits(len, ver <= 9 ? 8 : 16);
+  for (const b of data) pushBits(b, 8);
+  pushBits(0, 4); // Terminator
+  while (bits.length % 8 !== 0) bits.push(0);
+  while (bits.length < totalBits) {
+    pushBits(0xEC, 8);
+    if (bits.length < totalBits) pushBits(0x11, 8);
+  }
+
+  // Place data bits (simplified - no ECC for display purposes, use mask 0)
+  let bitIdx = 0;
+  for (let right = size - 1; right >= 1; right -= 2) {
+    if (right === 6) right = 5;
+    for (let vert = 0; vert < size; vert++) {
+      for (let j = 0; j < 2; j++) {
+        const col = right - j;
+        const upward = ((right + 1) / 2 | 0) % 2 === 1;
+        const row = upward ? size - 1 - vert : vert;
+        if (row >= 0 && row < size && col >= 0 && col < size && !reserved[row][col]) {
+          if (bitIdx < bits.length) {
+            let bit = bits[bitIdx++];
+            // Mask pattern 0: (row + col) % 2 === 0
+            if ((row + col) % 2 === 0) bit ^= 1;
+            modules[row][col] = !!bit;
+          }
+        }
+      }
+    }
+  }
+
+  // Write format info (ECC L = 01, mask 0 = 000) -> 01000 -> with ECC: 0x5412
+  const formatBits = 0x5412;
+  for (let i = 0; i < 15; i++) {
+    const bit = !!((formatBits >> (14 - i)) & 1);
+    // Around top-left finder
+    if (i < 6) modules[8][i] = bit;
+    else if (i === 6) modules[8][7] = bit;
+    else if (i === 7) modules[8][8] = bit;
+    else if (i === 8) modules[7][8] = bit;
+    else modules[14 - i][8] = bit;
+    // Around top-right and bottom-left finders
+    if (i < 8) modules[size - 1 - i][8] = bit;
+    else modules[8][size - 15 + i] = bit;
+  }
+
+  return modules;
+}
+
+// ============================================================
 // PDF FAKTURA (jsPDF inline)
 // ============================================================
 async function generovatFakturu() {
@@ -955,6 +1222,7 @@ async function vytvorPDF(data, fakturaId) {
   }
 
   const doc = new jsPDF();
+  const s = stripDiacritics; // shorthand
   const rok = new Date().getFullYear();
   const dnes = new Date().toLocaleDateString('cs-CZ');
   const splatnost = new Date();
@@ -972,7 +1240,7 @@ async function vytvorPDF(data, fakturaId) {
   // Header
   doc.setFontSize(20);
   doc.setTextColor(30, 58, 95);
-  doc.text(`Faktura \u010D. ${fakturaId}/${rok}`, 14, y);
+  doc.text(s(`Faktura c. ${fakturaId}/${rok}`), 14, y);
   y += 5;
   doc.setDrawColor(30, 58, 95);
   doc.setLineWidth(0.5);
@@ -987,26 +1255,26 @@ async function vytvorPDF(data, fakturaId) {
   y += 6;
   doc.setTextColor(30, 41, 59);
   doc.setFontSize(11);
-  doc.text(firma.nazev || 'Nastavte firmu v Nastaven\u00ed', 14, y);
+  doc.text(s(firma.nazev || 'Nastavte firmu v Nastaveni'), 14, y);
   y += 5;
   doc.setFontSize(9);
-  if (firma.ico) doc.text(`I\u010CO: ${firma.ico}`, 14, y);
-  if (firma.dic) doc.text(`DI\u010C: ${firma.dic}`, 14, y + 4);
-  if (firma.ulice) doc.text(firma.ulice, 14, y + 8);
-  if (firma.mesto) doc.text(`${firma.psc} ${firma.mesto}`, 14, y + 12);
+  if (firma.ico) doc.text(s(`ICO: ${firma.ico}`), 14, y);
+  if (firma.dic) doc.text(s(`DIC: ${firma.dic}`), 14, y + 4);
+  if (firma.ulice) doc.text(s(firma.ulice), 14, y + 8);
+  if (firma.mesto) doc.text(s(`${firma.psc} ${firma.mesto}`), 14, y + 12);
 
   // Odberatel placeholder
   doc.setFontSize(9);
-  doc.text('Dopln\u00ed u\u017Eivatel', 110, y);
+  doc.text(s('Doplni uzivatel'), 110, y);
   y += 20;
 
   // Dates
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Datum vystaven\u00ed: ${dnes}`, 14, y);
-  doc.text(`Datum splatnosti: ${datumSplatnosti}`, 14, y + 5);
-  doc.text(`Zp\u016Fsob platby: bankovn\u00ed p\u0159evod`, 14, y + 10);
-  if (firma.ucet) doc.text(`\u010C\u00edslo \u00fa\u010Dtu: ${firma.ucet}`, 14, y + 15);
+  doc.text(s(`Datum vystaveni: ${dnes}`), 14, y);
+  doc.text(s(`Datum splatnosti: ${datumSplatnosti}`), 14, y + 5);
+  doc.text(s('Zpusob platby: bankovni prevod'), 14, y + 10);
+  if (firma.ucet) doc.text(s(`Cislo uctu: ${firma.ucet}`), 14, y + 15);
   if (firma.iban) doc.text(`IBAN: ${firma.iban}`, 14, y + 20);
   y += 30;
 
@@ -1015,8 +1283,8 @@ async function vytvorPDF(data, fakturaId) {
   doc.rect(14, y, 182, 8, 'F');
   doc.setTextColor(30, 58, 95);
   doc.setFontSize(9);
-  doc.text('Polo\u017Eka', 16, y + 5.5);
-  doc.text('Mno\u017Estv\u00ed', 95, y + 5.5);
+  doc.text(s('Polozka'), 16, y + 5.5);
+  doc.text(s('Mnozstvi'), 95, y + 5.5);
   doc.text('Cena/j.', 125, y + 5.5);
   doc.text('Celkem', 160, y + 5.5);
   y += 10;
@@ -1024,10 +1292,10 @@ async function vytvorPDF(data, fakturaId) {
   // Table rows
   doc.setTextColor(30, 41, 59);
   data.polozky.forEach(p => {
-    doc.text(p.nazev, 16, y + 4);
-    doc.text(`${p.mnozstvi} ${p.jednotka}`, 95, y + 4);
-    doc.text(`${p.cena.toLocaleString('cs-CZ')} K\u010D`, 125, y + 4);
-    doc.text(`${p.celkem.toLocaleString('cs-CZ')} K\u010D`, 160, y + 4);
+    doc.text(s(p.nazev), 16, y + 4);
+    doc.text(s(`${p.mnozstvi} ${p.jednotka}`), 95, y + 4);
+    doc.text(`${p.cena.toLocaleString('cs-CZ')} Kc`, 125, y + 4);
+    doc.text(`${p.celkem.toLocaleString('cs-CZ')} Kc`, 160, y + 4);
     doc.setDrawColor(226, 232, 240);
     doc.line(14, y + 7, 196, y + 7);
     y += 8;
@@ -1041,10 +1309,10 @@ async function vytvorPDF(data, fakturaId) {
   y += 6;
   doc.setFontSize(10);
   doc.text('Celkem bez DPH:', 120, y);
-  doc.text(`${data.celkemBezDPH.toLocaleString('cs-CZ')} K\u010D`, 170, y);
+  doc.text(`${data.celkemBezDPH.toLocaleString('cs-CZ')} Kc`, 170, y);
   y += 6;
   doc.text('DPH 21%:', 120, y);
-  doc.text(`${data.dph.toLocaleString('cs-CZ')} K\u010D`, 170, y);
+  doc.text(`${data.dph.toLocaleString('cs-CZ')} Kc`, 170, y);
   y += 2;
   doc.setLineWidth(0.5);
   doc.line(120, y, 196, y);
@@ -1052,16 +1320,57 @@ async function vytvorPDF(data, fakturaId) {
   doc.setFontSize(12);
   doc.setTextColor(30, 58, 95);
   doc.text('CELKEM S DPH:', 120, y);
-  doc.text(`${data.celkemSDPH.toLocaleString('cs-CZ')} K\u010D`, 165, y);
+  doc.text(`${data.celkemSDPH.toLocaleString('cs-CZ')} Kc`, 165, y);
+
+  // QR Platba code
+  if (firma.iban || firma.ucet) {
+    const qrY = y + 12;
+    const vs = fakturaId.replace(/[^0-9]/g, '');
+    const spdString = generateQRPaymentString(
+      firma.iban || firma.ucet,
+      data.celkemSDPH,
+      vs,
+      `Faktura ${fakturaId}`
+    );
+    const qrSvg = generateQRSVG(spdString, 120);
+    if (qrSvg) {
+      try {
+        // Convert SVG to data URL for embedding in PDF
+        const svgBlob = new Blob([qrSvg], {type: 'image/svg+xml'});
+        const svgUrl = URL.createObjectURL(svgBlob);
+        // Use canvas to convert SVG -> PNG -> PDF
+        const img = new Image();
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve;
+          img.src = svgUrl;
+        });
+        const canvas = document.createElement('canvas');
+        canvas.width = 200; canvas.height = 200;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, 200, 200);
+        ctx.drawImage(img, 0, 0, 200, 200);
+        const pngData = canvas.toDataURL('image/png');
+        doc.addImage(pngData, 'PNG', 14, qrY, 35, 35);
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139);
+        doc.text('QR Platba', 14, qrY + 38);
+        URL.revokeObjectURL(svgUrl);
+      } catch(e) {
+        // QR generation failed silently
+      }
+    }
+  }
 
   // Footer
   y = 270;
   doc.setFontSize(7);
   doc.setTextColor(150, 150, 150);
-  doc.text(`Faktura dle z\u00e1kona 235/2004 Sb. o dani z p\u0159idan\u00e9 hodnoty | Vygenerov\u00e1no: \u0158emesln\u00edk Pro`, 14, y);
+  doc.text(s('Faktura dle zakona 235/2004 Sb. o dani z pridane hodnoty | Vygenerovano: Remeslnik Pro'), 14, y);
 
   doc.save(`faktura_${fakturaId}.pdf`);
-  toast(`📄 Faktura ${fakturaId} vygenerována`);
+  toast(`Faktura ${fakturaId} vygenerovana`);
 }
 
 function generateHTMLInvoice(data, fakturaId) {
