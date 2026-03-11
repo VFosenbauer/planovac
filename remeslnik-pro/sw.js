@@ -1,9 +1,10 @@
-const CACHE_NAME = 'remeslnik-pro-v2';
+const CACHE_NAME = 'remeslnik-pro-v3';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './jspdf.umd.min.js'
+  './jspdf.umd.min.js',
+  './qrcode.js'
 ];
 
 self.addEventListener('install', (event) => {
